@@ -13,3 +13,9 @@ test-results/
 # Git LFS, see .gitattributes). The PNG of each screen is an export of the FigCraft file, so it stays local.
 mockup/png/*
 !mockup/png/foundations.png
+
+# self-hosted server data and secrets
+.env
+.env.*
+data/
+.data/

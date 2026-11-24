@@ -6,7 +6,7 @@ changes until this mockup is approved.
 
 | File | What it holds | In git |
 | --- | --- | --- |
-| `meshboard-board-ui.figcraft` | FigCraft document, 2 pages: **Foundations** (tokens, icons, components and states) and **Board** (6 screens) | Yes, through Git LFS |
+| `meshboard-board-ui.figcraft` | FigCraft document, 3 pages: **Foundations** (tokens, icons, components and states), **Board** (6 screens) and **Dashboard** (the home screen of self-hosted Meshboard, see [docs/design/self-hosted.md](../docs/design/self-hosted.md)) | Yes, through Git LFS |
 | `tokens/` | The document's variables (Theme, Spacing, Radius, Size) exported from FigCraft: `variables.json` re-imports, `variables.css` is the CSS version | Yes |
 | `png/foundations.png` | The Foundations page as one sheet | Yes, through Git LFS |
 | `png/` (the rest) | One PNG per screen (desktop at 1×, phone at 2×) | No: re-export them from the FigCraft file |
@@ -211,3 +211,20 @@ self-hosted). Nothing else.
    behaviour); the frame is selected from its title or with a marquee around it.
 4. **Inter bundled** (~100 KB woff2, cached by the service worker) instead of the system font.
 5. **Dark theme** stays out of this round; the tokens are ready for a second mode.
+
+## 8. Dashboard (page **Dashboard**, self-hosted mode)
+
+`dashboard-desktop` (1440 × 900): the home screen of a signed-in user on a self-hosted server. It's
+built from the same tokens and components; the board cards and filter chips are new and are plain
+frames for now.
+
+- **Top bar:** brand and organisation, search across boards, people and groups (⌘K), help, and the
+  account menu with the name and email from the sign-in service.
+- **Sidebar:** All boards, Recent, Starred, Shared with me, Trash; then the groups that come from the
+  sign-in service, with their board counts; the sign-in provider and server at the bottom.
+- **Header:** title, how many boards match the filters, **Import** (a board file) and **New board**.
+- **Filters:** Owner (open: find a person, Anyone, Me, people at the organisation), Access, Group,
+  and Edited (active, in `accent/tint`, with ×); Clear filters; sort and a grid/list toggle.
+- **Board cards:** a thumbnail of the board, title, last edit and who made it, general access
+  (organisation or group can view or edit, or only members) and the members. The hovered card shows
+  its shadow, a **more** button and who is on the board now (`online`).

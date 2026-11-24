@@ -60,6 +60,38 @@ live, or for 90 days, whichever comes first.
   [`src/sync/presence.ts`](src/sync/presence.ts), and text is always rendered as text, never as
   HTML.
 
+## The self-hosted server
+
+[`server/`](server/) runs Meshboard with sign-in and a database (see
+[docs/self-hosting.md](docs/self-hosting.md)). There the board link is not the key: the server
+decides.
+
+- **Sign-in is the only call into the organisation's systems.** OpenID Connect uses the
+  authorization code flow with PKCE, state and nonce; an SSO gateway's headers are trusted only from
+  `TRUSTED_PROXIES`; a sign-in webhook gets a signed, timestamped request with only the
+  organisation's cookies, never Meshboard's.
+- **Sessions** are random 256-bit tokens in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` and
+  `__Host-` with HTTPS); only their SHA-256 is stored. API tokens are stored the same way and are
+  narrowed to their scopes.
+- **Every request is checked.** The role on a board (owner, editor, viewer) comes from
+  [`server/src/access.ts`](server/src/access.ts); a board someone can't open answers 404. Live sync
+  checks the same rules for every board, makes viewers' connections read-only (their changes are
+  dropped), and reconnects everyone when access changes.
+- **Cross-site requests are refused:** changes need a JSON body and this server's `Origin`, and the
+  WebSocket checks the `Origin` before it opens.
+- **Its own database, bound parameters only** (Kysely), and no access to any other database.
+- **Strict headers:** a Content-Security-Policy that allows only this server's scripts, styles,
+  fonts and connections, `frame-ancestors 'none'`, `nosniff`, no referrer, HSTS with HTTPS. Board
+  previews are SVGs drawn from clamped numbers, served with a sandboxing CSP.
+- **Limits:** request bodies, WebSocket messages and boards have maximum sizes, sign-in and the API
+  are rate limited per address, and unauthenticated WebSockets are closed quickly.
+- **The container** runs as an unprivileged user, and the server logs no board content, tokens or
+  cookies.
+
+On a self-hosted server, reports about getting past these checks are in scope, as are leaks of
+boards, sessions or tokens. The organisation running the server can read its boards: that's by
+design (backups, export, the API).
+
 ## In scope
 
 - Joining, reading or changing a board without its link, or recovering the secret from what the

@@ -4,12 +4,13 @@
 
 # Meshboard
 
-**The team whiteboard with no server.**
+**The team whiteboard that needs nothing to start.**
 
 Sticky notes, shapes, frames, connectors and emoji reactions in real time.<br />
-Browsers talk to each other directly: no accounts, no backend, nothing to pay for.
+Send a link and work together: no accounts, no backend, nothing to pay for.<br />
+When your team needs more, the same app runs on your own server.
 
-[**Open Meshboard →**](https://andrianleah.github.io/meshboard/) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Host your own](#host-your-own-in-5-minutes)
+[**Open Meshboard →**](https://andrianleah.github.io/meshboard/) &nbsp;·&nbsp; [Why](#why-meshboard) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Host your own](#host-your-own-in-5-minutes) &nbsp;·&nbsp; [Self-hosting](docs/self-hosting.md)
 
 [![CI](https://github.com/AndrianLeah/meshboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AndrianLeah/meshboard/actions/workflows/ci.yml)
 [![Deploy](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml/badge.svg)](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml)
@@ -23,12 +24,55 @@ Browsers talk to each other directly: no accounts, no backend, nothing to pay fo
 
 ![A sprint retro in Meshboard: three frames of sticky notes with emoji reactions, connectors, a selected note with its context bar and the live cursors of two teammates](public/screenshots/board-wide.png)
 
-## Why
+## Why Meshboard
 
-Online whiteboards are great until everyone needs an account, your notes live on somebody else's
-server and the free plan runs out after three boards. Meshboard is a static web page: create a
-board, send the link, and you're working together. The content only ever lives in the
-participants' browsers.
+Team rituals happen on a whiteboard: the sprint retro, the brainstorm, the planning session, the
+workshop. They need a board everyone can open in a second, notes that are quick to write, a way to
+react and vote, and nothing standing in the way. Meshboard does that one job, and it's built so
+that starting costs nothing and growing doesn't mean changing tools.
+
+### What it's good at
+
+- **Nothing to start with.** Open the page, create a board, send the link: you're working together.
+  No accounts, no sign-up, no backend, nothing to install or pay for. On the public site the content
+  only ever lives in the participants' browsers.
+- **Grows without changing tools.** The same app becomes the self-hosted one when it finds a server:
+  boards that are there for whoever opens them, sign-in, owners, editors and viewers, a dashboard of
+  every board you can open. One container, SQLite by default. People keep the board they know.
+- **Fits into a company, not next to it.** On your own server Meshboard has no accounts of its own:
+  people sign in with what the organisation already uses (OpenID Connect, an SSO gateway, or its
+  own service), and it keeps its data in a database of its own. Sign-in is the only thing it needs
+  from your systems.
+- **Small enough to read.** About 8,400 lines of strict TypeScript for the app and 3,200 for the
+  server, with 3,000 lines of tests: a security team can review all of it before approving it.
+- **Made for team rituals.** Sticky notes that fit their text, emoji reactions instead of fixed
+  votes, frames that carry their content, connectors, live cursors, the shortcuts people already
+  know, and an undo that only touches your own changes.
+- **Works where you are.** In the browser on desktop and phone, installable as an app, and usable
+  offline: changes merge when you're back.
+
+### Good fits
+
+- Sprint retrospectives, stand-ups and planning sessions.
+- Brainstorms, workshops and design sprints, in the room or remote.
+- A quick shared sketch during a call, without asking anyone to sign up.
+- An internal whiteboard for a company that wants its data on its own servers and its own sign-in.
+
+### Not the right tool
+
+- **A knowledge base.** Meshboard is a whiteboard only: no documents, wikis, databases or tasks to
+  link boards to.
+- **Precise diagrams.** It has shapes and connectors for thinking together, not a diagramming engine
+  with auto-layout, standard notations or exact measurements.
+- **Big audiences.** It's made for teams. Peer to peer connects every browser to every other one,
+  so dozens of people on one board is the limit, not hundreds.
+- **Long-term storage on the public site.** There a board lives only in the browsers that had it:
+  export it to keep it, or run your own server, where boards are kept.
+- **Every network, peer to peer.** Some mobile and office networks block direct connections; a relay
+  or your own server fixes that (see [below](#optional-a-relay-for-strict-networks)).
+- **Guests from outside the organisation** on a self-hosted server: everyone signs in, and there are
+  no guest links yet.
+- **Images and files.** Boards hold notes, shapes, text and drawings; images aren't supported yet.
 
 ## Features
 
@@ -75,6 +119,11 @@ flowchart LR
 - **Every browser keeps a copy.** Boards are stored in IndexedDB, so you can close the tab and
   find your board again under *Recent boards*.
 
+**On your own server** the same build finds a `config.json` and changes mode: browsers sync
+through one WebSocket to the server, which keeps each board in its own database, checks who may
+open and edit it, and makes viewers read-only. The design and the reasons behind it are in
+[docs/design/self-hosted.md](docs/design/self-hosted.md).
+
 ## Try it
 
 1. Open **[andrianleah.github.io/meshboard](https://andrianleah.github.io/meshboard/)**, type your
@@ -119,12 +168,28 @@ public site anyway.
 
 Only connections that can't go direct use the relay, so a small free tier goes a long way.
 
+### With accounts: your own server
+
+For a company that wants boards kept on its own server, sign-in with the accounts it already has
+(OpenID Connect, an SSO gateway, or its own service) and owners, editors and viewers, Meshboard also
+runs as one container with a database of its own:
+
+```bash
+docker run -p 8080:8080 -v meshboard:/data -e MESHBOARD_URL=http://localhost:8080 ghcr.io/andrianleah/meshboard
+```
+
+A board is then there for whoever opens it, even when nobody else is online, and the home screen
+becomes a dashboard of every board you can open. Sign-in is the only thing it needs from your
+systems. Everything about running it is in [docs/self-hosting.md](docs/self-hosting.md).
+
 ## Good to know
 
-- **A name is not a login.** Anyone with the link can join and pick any name. Share links only
-  with the people who should be on the board.
-- **A board lives with the people who use it.** When nobody has it open, it exists only in the
-  browsers that had it. Use **Export** to keep a long-term copy.
+- **A name is not a login** (on the public site). Anyone with the link can join and pick any name.
+  Share links only with the people who should be on the board, or run your own server with
+  sign-in.
+- **A board lives with the people who use it** (on the public site). When nobody has it open, it
+  exists only in the browsers that had it. Use **Export** to keep a long-term copy, or run your own
+  server.
 - **Some networks block direct connections.** On mobile data and some office networks teammates
   may not connect; whoever hosts Meshboard can add a relay: see
   [Optional: a relay for strict networks](#optional-a-relay-for-strict-networks).
@@ -146,13 +211,14 @@ npm run build      # production build in dist/, service worker included
 
 | Script | What it does |
 | --- | --- |
-| `npm test` | Unit tests (`node --test` on the `.ts` files): the model, sync over an in-memory room, actions, geometry, view maths, files, clipboard, keymap, emoji search |
+| `npm test` | Unit tests (`node --test` on the `.ts` files): the model, sync over an in-memory room, actions, geometry, view maths, files, clipboard, keymap, emoji search; and the server over real HTTP and WebSockets |
 | `npm run test:coverage` | The same, failing below 85% of lines, 80% of branches, 75% of functions |
-| `npm run test:e2e` | [Playwright](https://playwright.dev) tests in [`e2e/`](e2e/), desktop and phone. Run `npx playwright install chromium` once, or set `PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome |
+| `npm run test:e2e` | [Playwright](https://playwright.dev) tests in [`e2e/`](e2e/): desktop, phone, and the self-hosted server. Run `npx playwright install chromium` once, or set `PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome |
 | `npm run lint` · `npm run format` | ESLint and Prettier |
-| `npm run typecheck` | Strict type checking of the app, the service worker, and the tests, specs and configs (three tsconfigs) |
+| `npm run typecheck` | Strict type checking of the app, the service worker, the tests, specs and configs, and the server (four tsconfigs) |
 | `npm run tokens` | Regenerates `src/styles/tokens.css` from `mockup/tokens/variables.css` |
 | `npm run favicon` | Renders `public/favicon.svg` into `public/favicon.ico` (16, 32 and 48 px), which Safari needs |
+| `npm run server` | The self-hosted server ([`server/`](server/)) with the built app: see [docs/self-hosting.md](docs/self-hosting.md) |
 
 Changes reach `main` only through pull requests, and every pull request runs `check`, the build and the
 end-to-end tests ([CI](.github/workflows/ci.yml)); `main` deploys to GitHub Pages only after the same checks pass.
@@ -169,12 +235,14 @@ from the FigCraft mockup ([`mockup/`](mockup/)), and every control comes from th
 | Folder | What it holds |
 | --- | --- |
 | [`src/core/`](src/core/) | The board model on Yjs, item schema and migrations, geometry, clipboard and files (no DOM: tested in Node) |
-| [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero) and presence |
+| [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero), the self-hosted transport (Hocuspocus) and presence |
 | [`src/board/`](src/board/) | The canvas: view (pan, zoom, wheel), renderers, overlay, one file per tool, and the actions the commands call |
 | [`src/commands/`](src/commands/) | Every action by id, and the one shortcut table behind keys, tooltips and the shortcuts panel |
 | [`src/ui/`](src/ui/) | Toolbar, context bar, menus, emoji picker; [`ui/ds/`](src/ui/ds/) is the design system's JavaScript side |
 | [`src/styles/`](src/styles/) | Generated tokens, the design system ([`ds/`](src/styles/ds/)) and layout |
-| [`src/pages/`](src/pages/), [`src/app/`](src/app/) | Home and board screens; install prompt and offline service worker |
+| [`src/pages/`](src/pages/), [`src/app/`](src/app/) | Home, dashboard and board screens; which mode this is (config.json), install prompt and offline service worker |
+| [`src/hosted/`](src/hosted/) | The self-hosted server's API, for the dashboard and the share dialog |
+| [`server/`](server/) | The self-hosted server: sign-in, access, the API, live sync and its own database |
 
 <details>
 <summary><strong>Export format</strong></summary>

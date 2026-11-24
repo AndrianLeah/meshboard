@@ -47,6 +47,12 @@ export function createTopbar({ commands, onTitle }: { commands: Commands; onTitl
   )
 
   const people = h('div', { class: 'topbar__people' })
+  const viewOnly = h('span', {
+    class: 'topbar__badge ds-caption',
+    text: 'View only',
+    title: 'You can look at this board but not change it',
+    hidden: true,
+  })
   const live = h('span', { class: 'ds-visually-hidden', role: 'status' })
   const share = button({
     label: 'Share',
@@ -60,11 +66,16 @@ export function createTopbar({ commands, onTitle }: { commands: Commands; onTitl
     'header',
     { class: 'topbar' },
     h('div', { class: 'ds-panel ds-bar topbar__board' }, home, title, more),
-    h('div', { class: 'ds-panel ds-bar ds-bar--spaced topbar__share' }, people, live, share),
+    h('div', { class: 'ds-panel ds-bar ds-bar--spaced topbar__share' }, viewOnly, people, live, share),
   )
 
   return {
     root,
+    /** A viewer's board: the title can't be changed and a badge says so. */
+    setReadOnly(on: boolean) {
+      title.disabled = on
+      viewOnly.hidden = !on
+    },
     setTitle(t: string) {
       if (document.activeElement !== title) title.value = t === DEFAULT_TITLE ? '' : t
     },

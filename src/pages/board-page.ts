@@ -5,6 +5,10 @@ import { createStore } from '../core/store.ts'
 import { exportBoard, importBoard } from '../core/transfer.ts'
 import { encodeClipboard } from '../core/clipboard.ts'
 import { connect } from '../sync/index.ts'
+import { connectServer } from '../sync/server.ts'
+import type { ServerStatus } from '../sync/server.ts'
+import { openShareDialog } from '../ui/share-dialog.ts'
+import type { BoardSummary } from '../hosted/api.ts'
 import { turnServers } from '../sync/ice.ts'
 import { joinState, SEARCH_MS } from '../sync/status.ts'
 import type { JoinFacts } from '../sync/status.ts'
@@ -38,6 +42,25 @@ interface Chrome {
   contextBar: ReturnType<typeof createContextBar>
 }
 
+/** A board on a self-hosted server. */
+export interface HostedBoard {
+  board: BoardSummary
+  /** the WebSocket address of the server's /sync */
+  wsUrl: string
+  /** shown as "Everyone at …" in the share dialog */
+  orgName: string
+  /** the viewer's groups, to share with one of them */
+  groups: readonly string[]
+  /** AUTH=none: changes the name you signed in with */
+  renameSelf?: (name: string) => Promise<void>
+  /** the session ended while the board was open */
+  onSignedOut?: () => void
+  /** asks the server whether the session is still valid */
+  checkSession?: () => Promise<boolean>
+}
+
+export type BoardTarget = { token: BoardToken } | { hosted: HostedBoard }
+
 export interface OpenBoardOptions {
   /** an export to load into a freshly created board */
   initialData?: BoardExport | null
@@ -46,16 +69,21 @@ export interface OpenBoardOptions {
   goHome?: () => void
 }
 
-/** Opens the board of `token` inside `root`. */
+/** Opens a board inside `root`: peer to peer from its token, or from a self-hosted server. */
 export async function openBoard(
   root: HTMLElement,
-  token: BoardToken,
+  target: BoardTarget,
   user: User,
   { initialData = null, isNew = false, goHome }: OpenBoardOptions = {},
 ): Promise<{ close: () => Promise<void> }> {
   const me = { id: user.id, name: user.name }
   const store = createStore(me)
-  const sync = connect(store, token, { turnConfig: await turnServers() })
+  const hosted = 'hosted' in target ? target.hosted : null
+  const token = 'token' in target ? target.token : null
+  const serverSync = hosted ? connectServer(store, hosted.board.id, { url: hosted.wsUrl }) : null
+  const sync = serverSync ?? connect(store, token!, { turnConfig: await turnServers() })
+  /** viewers can look, not change */
+  const readOnly = hosted?.board.role === 'viewer'
 
   const canvas = h('div', { class: 'board-page__canvas' })
   const page = h('div', { class: 'board-page' }, canvas)
@@ -125,7 +153,11 @@ export async function openBoard(
   }
 
   async function share() {
-    const url = shareUrl(token.token)
+    if (hosted) {
+      openShareDialog(hosted.board, { orgName: hosted.orgName, groups: hosted.groups, meId: me.id })
+      return
+    }
+    const url = shareUrl(token!.token)
     if (await copyText(url)) toast('Link copied. Anyone who has it can join and edit this board.')
     else window.prompt('Copy this link and send it to your teammates:', url)
   }
@@ -157,9 +189,21 @@ export async function openBoard(
   }
 
   async function rename() {
+    if (hosted && !hosted.renameSelf) {
+      toast('Your name comes from how you signed in.')
+      return
+    }
     const name = await promptText({ title: 'Your name', label: 'How teammates see you', value: me.name, maxlength: 40 })
     if (!name) return
-    me.name = setUserName(name).name
+    if (hosted?.renameSelf) {
+      try {
+        await hosted.renameSelf(name)
+      } catch (err) {
+        toast(errorMessage(err), { tone: 'danger' })
+        return
+      }
+      me.name = name
+    } else me.name = setUserName(name).name
     store.registerUser(me.id, me.name)
     sync.presence.set({ name: me.name })
     renderPeople()
@@ -169,6 +213,7 @@ export async function openBoard(
   const commands = createCommands({
     board,
     store,
+    readOnly: () => readOnly,
     ui: {
       openShapes: () =>
         void openShapesFlyout(chrome.toolbar.shapesButton, { commands, placement: phone.matches ? 'top' : 'right' }),
@@ -205,7 +250,12 @@ export async function openBoard(
     }),
   }
   built = chrome
-  page.append(chrome.topbar.root, chrome.toolbar.root, chrome.history.root, chrome.zoom.root, chrome.contextBar.root)
+  if (readOnly) {
+    board.setReadOnly(true)
+    chrome.topbar.setReadOnly(true)
+    page.append(chrome.topbar.root, chrome.zoom.root)
+  } else
+    page.append(chrome.topbar.root, chrome.toolbar.root, chrome.history.root, chrome.zoom.root, chrome.contextBar.root)
   chrome.toolbar.update(board.tool)
   chrome.zoom.update({ s: board.view.scale })
 
@@ -241,7 +291,7 @@ export async function openBoard(
     const t = store.getTitle()
     chrome.topbar.setTitle(t)
     document.title = `${t} · Meshboard`
-    touchRecent(token.token, t)
+    if (token) touchRecent(token.token, t)
   }
   store.meta.observe(syncTitle)
 
@@ -261,7 +311,8 @@ export async function openBoard(
   // until the local copy is loaded nothing is known; once a teammate connects or content shows up, the note is done
   let joining: 'loading' | 'open' | 'done' = 'loading'
   function updateJoin() {
-    if (joining === 'loading') return
+    // a self-hosted board's content comes from the server: its notes are about the connection
+    if (hosted || joining === 'loading') return
     const state = joinState({ ...facts, peers: sync.peerCount() })
     if (joining === 'open' && (state === 'connected' || store.items.size > 0)) joining = 'done'
     notice.set(joining === 'open' ? state : null)
@@ -272,8 +323,43 @@ export async function openBoard(
   }, SEARCH_MS)
   const offJoinPeers = sync.presence.onPeers(updateJoin)
 
+  // ---------- a self-hosted board: connection status and access ----------
+
+  let offStatus = () => {}
+  let sessionTimer: ReturnType<typeof setTimeout> | undefined
+  if (serverSync && hosted) {
+    let wasOffline = false
+    const showStatus = (status: ServerStatus) => {
+      if (status === 'connected') {
+        if (wasOffline) toast('Back online. Your changes are synced.')
+        wasOffline = false
+        clearTimeout(sessionTimer)
+        if (notice.root.dataset.state !== 'forbidden') notice.set(null)
+        return
+      }
+      if (status === 'offline' && !wasOffline) {
+        wasOffline = true
+        // a refused connection may mean the session ended: ask once it has failed for a while
+        clearTimeout(sessionTimer)
+        sessionTimer = setTimeout(async () => {
+          if (serverSync.status() === 'connected' || !hosted.checkSession) return
+          if (!(await hosted.checkSession())) hosted.onSignedOut?.()
+          else if (store.items.size) toast("You're offline. Changes are kept here and sent when you're back.")
+        }, 3000)
+      }
+      if (!store.items.size) notice.set(status === 'offline' ? 'server-offline' : 'server-connecting')
+    }
+    offStatus = serverSync.onStatus(showStatus)
+    showStatus(serverSync.status())
+  }
+
   const warned = new Set<string>()
   const offError = sync.onError((err) => {
+    if (hosted) {
+      // the server refused this board: access was removed, or it went to the trash
+      notice.set('forbidden')
+      return
+    }
     if (err.code === 'relay-failed') facts.relaysFailed = true
     else if (err.code === 'peer-connect-failed') facts.connectFailed = true
     else return
@@ -291,8 +377,10 @@ export async function openBoard(
   // ---------- startup ----------
 
   await sync.ready
-  store.migrate()
-  store.registerUser(me.id, me.name)
+  if (!readOnly) {
+    store.migrate()
+    store.registerUser(me.id, me.name)
+  }
   if (initialData) {
     try {
       importBoard(store, initialData, { asNewBoard: true })
@@ -309,7 +397,7 @@ export async function openBoard(
 
   // A board that's still empty (just joined from a link) says where its content is until it
   // arrives, then fits the view to it; if you draw the first item yourself the view stays put.
-  joining = isNew || initialData || store.items.size > 0 ? 'done' : 'open'
+  joining = hosted || isNew || initialData || store.items.size > 0 ? 'done' : 'open'
   updateJoin()
   if (store.items.size === 0) {
     const once = (_event: unknown, transaction: Y.Transaction) => {
@@ -330,7 +418,9 @@ export async function openBoard(
       offMove()
       offError()
       offJoinPeers()
+      offStatus()
       clearTimeout(waitTimer)
+      clearTimeout(sessionTimer)
       chrome.history.destroy()
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('cut', onCut)

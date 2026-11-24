@@ -52,7 +52,37 @@ const TOOL_LABELS: Record<ToolId, [string, IconName]> = {
   frame: ['Frame', 'frame'],
 }
 
-export function createCommands({ board, store, ui }: { board: Board; store: Store; ui: PageActions }) {
+/** What a viewer (read-only) can still do: look around, export, share, leave. */
+const VIEW_ONLY = new Set([
+  'tool.select',
+  'tool.hand',
+  'zoom-in',
+  'zoom-out',
+  'zoom-reset',
+  'zoom-fit',
+  'zoom-selection',
+  'toggle-grid',
+  'shortcuts',
+  'share',
+  'export',
+  'rename',
+  'install',
+  'home',
+  'escape',
+])
+
+export function createCommands({
+  board,
+  store,
+  ui,
+  readOnly = () => false,
+}: {
+  board: Board
+  store: Store
+  ui: PageActions
+  /** a viewer: everything that would change the board is off */
+  readOnly?: () => boolean
+}) {
   const sel = () => board.selection()
   const some = () => sel().length > 0
   const unlocked = () => sel().some((it) => !it.locked)
@@ -159,6 +189,12 @@ export function createCommands({ board, store, ui }: { board: Board; store: Stor
     },
     { id: 'home', label: 'All boards', icon: 'home', run: () => ui.goHome() },
   ]
+
+  for (const c of list) {
+    if (VIEW_ONLY.has(c.id)) continue
+    const enabled = c.enabled
+    c.enabled = () => !readOnly() && (enabled ? enabled() : true)
+  }
 
   const byId = new Map(list.map((c) => [c.id, c]))
   const get = (id: string): Command => {

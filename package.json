@@ -9,22 +9,25 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "server": "node --disable-warning=ExperimentalWarning server/src/main.ts",
     "tokens": "node scripts/tokens.ts",
     "favicon": "node scripts/favicon.ts",
     "lint": "eslint --flag unstable_native_nodejs_ts_config .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.node.json",
-    "test": "node --test \"test/*.test.ts\"",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=85 --test-coverage-branches=80 --test-coverage-functions=75 \"test/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.node.json && tsc -p server/tsconfig.json",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.ts\" \"server/test/*.test.ts\"",
+    "test:coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-include=\"server/src/**\" --test-coverage-exclude=\"server/src/main.ts\" --test-coverage-exclude=\"server/src/cli.ts\" --test-coverage-lines=85 --test-coverage-branches=80 --test-coverage-functions=75 \"test/*.test.ts\" \"server/test/*.test.ts\"",
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
+    "@hocuspocus/provider": "4.9.0",
     "emojibase-data": "18.0.0",
     "trystero": "0.27.0",
     "y-indexeddb": "9.0.12",
+    "y-protocols": "1.0.7",
     "yjs": "13.6.33"
   },
   "devDependencies": {
@@ -51,5 +54,8 @@
   ],
   "engines": {
     "node": ">=22.18"
-  }
+  },
+  "workspaces": [
+    "server"
+  ]
 }
