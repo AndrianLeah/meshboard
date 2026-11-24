@@ -12,9 +12,9 @@ Browsers talk to each other directly: no accounts, no backend, nothing to pay fo
 [**Open Meshboard →**](https://andrianleah.github.io/meshboard/) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Host your own](#host-your-own-in-5-minutes)
 
 [![Deploy](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml/badge.svg)](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-141925)](LICENSE)
-![Backend: none](https://img.shields.io/badge/backend-none-ff6b8b)
-![PWA: installable](https://img.shields.io/badge/PWA-installable-4cb8f5)
+[![License: MIT](docs/badges/license.svg)](LICENSE)
+[![Backend: none](docs/badges/backend.svg)](#how-it-works)
+[![PWA: installable](docs/badges/pwa.svg)](#try-it)
 
 </div>
 
