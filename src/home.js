@@ -1,31 +1,33 @@
-// Schermata iniziale: nome, nuova lavagna, entra da link, apri da file, recenti.
+// Home screen: your name, new board, join from a link, open from a file, recent boards.
 import { ICONS } from './icons.js'
 import { getRecent, forgetRecent, parseToken } from './identity.js'
 import { readJsonFile, relativeTime } from './ui.js'
+import { canInstall, onInstallChange, promptInstall } from './pwa.js'
 
 const TEMPLATE = `
   <main class="home">
     <section class="card home-card">
-      <div class="home-brand">${ICONS.logo}<h1>Meshboard</h1></div>
-      <p class="tagline">Lavagna condivisa tra colleghi. Niente server, niente account: i browser si parlano direttamente.</p>
+      <div class="home-brand">${ICONS.logoLarge}<h1>Meshboard</h1></div>
+      <p class="tagline">A whiteboard for your team. No server, no accounts: browsers talk to each other directly.</p>
 
       <label class="field">
-        <span>Il tuo nome</span>
-        <input class="name-input" maxlength="40" autocomplete="nickname" placeholder="Come ti vedranno gli altri" />
+        <span>Your name</span>
+        <input class="name-input" maxlength="40" autocomplete="nickname" placeholder="How others will see you" />
       </label>
 
       <div class="invite" hidden>
-        <p class="invite-text">Ti hanno invitato a una lavagna.</p>
-        <button type="button" class="btn primary big join-invite">Entra nella lavagna</button>
+        <p class="invite-text">You've been invited to a board.</p>
+        <button type="button" class="btn primary big join-invite">Join the board</button>
       </div>
 
       <div class="start">
-        <button type="button" class="btn primary big create">Crea una nuova lavagna</button>
+        <button type="button" class="btn primary big create">Create a new board</button>
         <form class="join-form">
-          <input class="link-input" placeholder="…oppure incolla un link di invito" aria-label="Link di invito" />
-          <button type="submit" class="btn">Entra</button>
+          <input class="link-input" placeholder="…or paste an invite link" aria-label="Invite link" />
+          <button type="submit" class="btn">Join</button>
         </form>
-        <button type="button" class="btn ghost open-file">${ICONS.upload}Apri da un file esportato</button>
+        <button type="button" class="btn ghost open-file">${ICONS.upload}Open an exported file</button>
+        <button type="button" class="btn ghost install" hidden>${ICONS.install}Install as app</button>
         <input type="file" class="file-input" accept=".json,application/json" hidden />
       </div>
 
@@ -33,17 +35,17 @@ const TEMPLATE = `
     </section>
 
     <section class="card recent" hidden>
-      <h2>Lavagne recenti su questo browser</h2>
+      <h2>Recent boards in this browser</h2>
       <ul class="recent-list"></ul>
     </section>
 
-    <p class="foot">Open source · i dati restano nei browser di chi partecipa · <a href="https://github.com/" class="repo-link" target="_blank" rel="noopener">codice</a></p>
+    <p class="foot">Open source · your data stays in the participants' browsers<span class="repo"> · <a href="https://github.com/" class="repo-link" target="_blank" rel="noopener">source</a></span></p>
   </main>
 `
 
 /**
- * actions: {enter(token, name), create(name, initialData?)}
- * `parsed` è il token nell'URL, se presente (invito).
+ * enter(token, name) joins a board; create(name, initialData?) makes a new one.
+ * `parsed` is the token found in the URL, if any (an invite).
  */
 export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
   const page = document.createElement('div')
@@ -57,7 +59,7 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
   const error = $('.error')
   nameInput.value = user.name || ''
   if (repoUrl) $('.repo-link').href = repoUrl
-  else $('.repo-link').remove()
+  else $('.repo').remove()
 
   const showError = (msg) => {
     error.textContent = msg
@@ -67,7 +69,7 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
   function requireName() {
     const name = nameInput.value.trim()
     if (!name) {
-      showError('Scrivi il tuo nome: serve ai colleghi per sapere chi ha scritto cosa.')
+      showError('Enter your name so teammates know who wrote what.')
       nameInput.focus()
       return null
     }
@@ -95,7 +97,7 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
   $('.join-form').addEventListener('submit', (e) => {
     e.preventDefault()
     const p = parseToken($('.link-input').value)
-    if (!p) return showError('Il link non sembra un invito di Meshboard.')
+    if (!p) return showError("That doesn't look like a Meshboard invite link.")
     const name = requireName()
     if (name) enter(p.token, name)
   })
@@ -110,7 +112,7 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
     try {
       const data = await readJsonFile(file)
       if (data?.format !== 'meshboard' || !Array.isArray(data.items)) {
-        throw new Error('Il file non è un export di Meshboard.')
+        throw new Error("This file isn't a Meshboard export.")
       }
       create(nameInput.value.trim(), data)
     } catch (err) {
@@ -118,7 +120,7 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
     }
   })
 
-  // recenti
+  // recent boards
   const list = $('.recent-list')
   function renderRecent() {
     const recent = getRecent()
@@ -141,8 +143,8 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
         const del = document.createElement('button')
         del.type = 'button'
         del.className = 'icon-btn'
-        del.title = 'Togli dall’elenco (i dati restano nel browser)'
-        del.setAttribute('aria-label', `Togli ${r.title} dall’elenco`)
+        del.title = 'Remove from the list (the data stays in this browser)'
+        del.setAttribute('aria-label', `Remove ${r.title} from the list`)
         del.innerHTML = ICONS.close
         del.addEventListener('click', () => {
           forgetRecent(r.token)
@@ -154,7 +156,15 @@ export function renderHome(root, { user, parsed, enter, create, repoUrl }) {
     )
   }
   renderRecent()
-  ;(parsed ? nameInput : user.name ? $('.create') : nameInput).focus()
 
-  return { close() {} }
+  const install = $('.install')
+  const syncInstall = (can) => (install.hidden = !can)
+  syncInstall(canInstall())
+  const offInstall = onInstallChange(syncInstall)
+  install.addEventListener('click', () => promptInstall())
+
+  // focus the name only when it's missing: a focused button on load looks already pressed
+  if (parsed || !user.name) nameInput.focus()
+
+  return { close: () => offInstall() }
 }

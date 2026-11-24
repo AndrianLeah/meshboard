@@ -1,7 +1,7 @@
 {
   "name": "meshboard",
   "version": "0.1.0",
-  "description": "Lavagna collaborativa peer-to-peer senza server: forme, post-it e voti.",
+  "description": "Peer-to-peer team whiteboard with no server: sticky notes, shapes, arrows and votes.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -18,5 +18,15 @@
   },
   "devDependencies": {
     "vite": "8.3.8"
-  }
+  },
+  "keywords": [
+    "whiteboard",
+    "collaboration",
+    "p2p",
+    "webrtc",
+    "crdt",
+    "yjs",
+    "pwa",
+    "sticky-notes"
+  ]
 }

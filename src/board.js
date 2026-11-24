@@ -1,5 +1,5 @@
-// Canvas infinito: rendering degli elementi e interazioni (strumenti,
-// selezione, spostamento, ridimensionamento, frecce, pan e zoom).
+// Infinite canvas: item rendering and interactions (tools, selection,
+// move, resize, arrows, pan and zoom).
 import { COLORS } from './store.js'
 import { arrowEnds, bounds, intersects, normRect } from './geometry.js'
 import { userColor } from './identity.js'
@@ -43,7 +43,7 @@ export function createBoard(viewport, store, hooks = {}) {
   const cursorsLayer = el('div', 'cursors', world)
   const emptyHint = el('div', 'empty-hint', viewport)
   emptyHint.textContent =
-    'Doppio clic per un post-it · N post-it · R rettangolo · O ellisse · T testo · A freccia'
+    'Double-click for a sticky note · N note · R rectangle · O ellipse · T text · A arrow'
 
   const rect0 = viewport.getBoundingClientRect()
   const view = { x: rect0.width / 2, y: rect0.height / 2, s: 1 }
@@ -56,13 +56,13 @@ export function createBoard(viewport, store, hooks = {}) {
   let frame = 0
   let cache = { list: [], byId: new Map() }
   const nodes = new Map() // id -> {el, sig}
-  const pointers = new Map() // pointerId -> {x, y} (per il pinch)
+  const pointers = new Map() // pointerId -> {x, y} (for pinch zoom)
   let pinch = null
   const lastColor = { note: 'yellow', rect: 'blue', ellipse: 'green', text: 'gray', arrow: 'gray' }
 
   const getItem = (id) => cache.byId.get(id)
 
-  // ---------- vista ----------
+  // ---------- view ----------
 
   function applyView() {
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`
@@ -139,7 +139,7 @@ export function createBoard(viewport, store, hooks = {}) {
     renderArrows(list)
     renderOverlay()
     emptyHint.hidden = list.length > 0
-    // anche senza cambi di selezione: colori e ordine possono essere cambiati
+    // even without a selection change: colours and order may have changed
     if (selChanged || selection.size) hooks.onSelectionChange?.([...selection])
   }
 
@@ -191,7 +191,7 @@ export function createBoard(viewport, store, hooks = {}) {
     node.style.setProperty('--fill', c.fill)
     node.style.setProperty('--stroke', c.stroke)
 
-    // mentre si scrive non si tocca la textarea (perderebbe il focus)
+    // leave the textarea alone while typing (it would lose focus)
     const ta = node.querySelector(':scope > .body > textarea')
     if (editing && ta) return
 
@@ -200,7 +200,7 @@ export function createBoard(viewport, store, hooks = {}) {
       const area = el('textarea', '', body)
       area.value = it.text || ''
       area.spellcheck = true
-      area.setAttribute('aria-label', 'Testo')
+      area.setAttribute('aria-label', 'Text')
       area.addEventListener('input', () => store.update({ [it.id]: { text: area.value } }))
       area.addEventListener('keydown', (e) => {
         e.stopPropagation()
@@ -219,7 +219,7 @@ export function createBoard(viewport, store, hooks = {}) {
     if (it.type === 'note') {
       const footer = el('div', 'note-footer')
       const author = el('span', 'author', footer)
-      author.textContent = it.author === me.id ? 'tu' : store.userName(it.author)
+      author.textContent = it.author === me.id ? 'you' : store.userName(it.author)
       const box = el('span', 'votes', footer)
       const own = it.author === me.id
       for (const [value, icon, ids] of [
@@ -232,8 +232,8 @@ export function createBoard(viewport, store, hooks = {}) {
         b.disabled = own
         const who = ids.map(store.userName).join(', ')
         b.title = own
-          ? `${who || 'Nessun voto'} · non puoi votare i tuoi post-it`
-          : who || (value === 1 ? 'Mi piace' : 'Non mi piace')
+          ? `${who || 'No votes'} · you can't vote on your own notes`
+          : who || (value === 1 ? 'Thumbs up' : 'Thumbs down')
         b.setAttribute('aria-pressed', String(votes.mine === value))
         const i = el('span', '', b)
         i.textContent = icon
@@ -256,7 +256,7 @@ export function createBoard(viewport, store, hooks = {}) {
     }
     arrowsGroup.replaceChildren(frag)
 
-    // anteprima mentre si disegna una freccia
+    // preview while drawing an arrow
     previewGroup.replaceChildren()
     if (gesture?.type === 'arrow') {
       const from = gesture.from ? getItem(gesture.from) : null
@@ -321,7 +321,7 @@ export function createBoard(viewport, store, hooks = {}) {
     node.style.height = `${r.h}px`
   }
 
-  // ---------- cursori degli altri ----------
+  // ---------- teammates' cursors ----------
 
   const cursorNodes = new Map()
   function setCursors(peers) {
@@ -338,7 +338,7 @@ export function createBoard(viewport, store, hooks = {}) {
       }
       c.style.setProperty('--c', userColor(p.uid))
       c.style.transform = `translate(${p.x}px, ${p.y}px) scale(var(--inv))`
-      c.lastChild.textContent = p.name || 'Anonimo'
+      c.lastChild.textContent = p.name || 'Anonymous'
     }
     for (const [peerId, c] of cursorNodes) {
       if (!seen.has(peerId)) {
@@ -348,7 +348,7 @@ export function createBoard(viewport, store, hooks = {}) {
     }
   }
 
-  // ---------- selezione e strumenti ----------
+  // ---------- selection and tools ----------
 
   function setSelection(ids) {
     selection = new Set(ids)
@@ -384,10 +384,10 @@ export function createBoard(viewport, store, hooks = {}) {
     const fresh = editingFresh
     editingId = null
     editingFresh = false
-    // via il focus subito, così il prossimo tasto è una scorciatoia e non testo
+    // drop focus right away, so the next key is a shortcut rather than text
     nodes.get(id)?.el.querySelector('textarea')?.blur()
     const it = store.get(id)
-    // un testo lasciato vuoto subito dopo la creazione non serve a nulla
+    // a text item left empty right after creating it is useless
     if (it && it.type === 'text' && fresh && !String(it.text || '').trim()) store.remove([id])
     store.stopCapturing()
     render()
@@ -454,8 +454,8 @@ export function createBoard(viewport, store, hooks = {}) {
     switch (tool) {
       case 'note':
       case 'text':
-        // si crea al rilascio: se il focus andasse alla textarea adesso,
-        // il mousedown che segue glielo toglierebbe subito
+        // create on release: if the textarea took focus now, the
+        // mousedown that follows would steal it straight back
         gesture = { type: 'place', what: tool, p }
         return
       case 'rect':
@@ -476,7 +476,7 @@ export function createBoard(viewport, store, hooks = {}) {
         return
     }
 
-    // strumento selezione
+    // select tool
     const handle = e.target.closest('[data-handle]')
     if (handle && selection.size === 1) {
       const it = getItem([...selection][0])
@@ -774,7 +774,7 @@ export function createBoard(viewport, store, hooks = {}) {
     store.update(patches)
   }
 
-  // ---------- azioni sulla selezione ----------
+  // ---------- selection actions ----------
 
   function deleteSelection() {
     if (!selection.size) return
@@ -807,7 +807,7 @@ export function createBoard(viewport, store, hooks = {}) {
     store.reorder([...selection], toFront)
   }
 
-  // ---------- collegamenti ----------
+  // ---------- wiring ----------
 
   const onLeave = () => hooks.onPointer?.(null)
   const onBlur = () => {

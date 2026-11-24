@@ -1,8 +1,8 @@
-// Sincronizzazione senza server:
-//  - IndexedDB tiene una copia locale della lavagna (sopravvive alla chiusura);
-//  - Trystero collega i browser direttamente (WebRTC). I relay Nostr pubblici
-//    servono solo a far incontrare i peer e vedono l'handshake cifrato con il
-//    segreto del token, mai il contenuto della lavagna.
+// Serverless sync:
+//  - IndexedDB keeps a local copy of the board (it survives closing the tab);
+//  - Trystero connects browsers directly (WebRTC). Public Nostr relays are only
+//    used for peers to find each other; they see a handshake encrypted with the
+//    token's secret, never the board's content.
 import * as Y from 'yjs'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { joinRoom } from 'trystero'
@@ -20,24 +20,24 @@ const toBytes = (data) => {
 }
 
 /**
- * Collega `store.doc` alla stanza indicata dal token.
- * Ritorna {ready, setPresence, onPeers, onPresence, onError, peerCount, destroy}.
+ * Connects `store.doc` to the room identified by the token.
+ * Returns {ready, setPresence, onPeers, onPresence, onError, peerCount, destroy}.
  */
 export function connect(store, { roomId, secret }, options = {}) {
   const { doc } = store
   const listeners = { peers: new Set(), presence: new Set(), error: new Set() }
   const emit = (kind, ...args) => listeners[kind].forEach((fn) => fn(...args))
 
-  // 1. copia locale
+  // 1. local copy
   const local = new IndexeddbPersistence(`meshboard-${roomId}`, doc)
   const ready = local.whenSynced
 
-  // 2. rete peer-to-peer
+  // 2. peer-to-peer network
   const room = joinRoom(
     {
       appId: APP_ID,
       password: secret,
-      // TURN opzionale per reti molto chiuse, vedi README
+      // optional TURN for locked-down networks, see the README
       ...(options.turnConfig ? { turnConfig: options.turnConfig } : {}),
     },
     roomId,
@@ -46,7 +46,7 @@ export function connect(store, { roomId, secret }, options = {}) {
   const vectors = room.makeAction('sv')
   const presence = room.makeAction('pres')
 
-  // aggiornamenti locali → tutti i peer, accorpati ogni FLUSH_MS
+  // local updates → every peer, batched every FLUSH_MS
   let pending = []
   let flushTimer = 0
   const flush = () => {
@@ -69,23 +69,23 @@ export function connect(store, { roomId, secret }, options = {}) {
     try {
       Y.applyUpdate(doc, bytes, REMOTE)
     } catch (err) {
-      console.warn('Aggiornamento remoto non valido', err)
+      console.warn('Invalid remote update', err)
     }
   })
 
-  // all'ingresso di un peer ci scambiamo i "vettori di stato":
-  // ognuno risponde con esattamente ciò che manca all'altro
+  // when a peer joins we swap "state vectors":
+  // each side replies with exactly what the other is missing
   vectors.onMessage((data, { peerId }) => {
     const sv = toBytes(data)
     if (!sv) return
     try {
       updates.send(Y.encodeStateAsUpdate(doc, sv), { target: peerId }).catch(() => {})
     } catch (err) {
-      console.warn('Vettore di stato non valido', err)
+      console.warn('Invalid state vector', err)
     }
   })
 
-  // presenza: nome + cursore, solo in memoria
+  // presence: name + cursor, in memory only
   const peers = new Map() // peerId -> {uid, name, x, y}
   let mine = { uid: store.me.id, name: store.me.name, x: null, y: null }
   let presenceTimer = 0

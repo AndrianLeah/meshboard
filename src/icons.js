@@ -1,9 +1,20 @@
-// Icone SVG statiche (nessun dato utente: sicure in innerHTML).
+// Static SVG icons (no user data: safe for innerHTML).
+import logoSource from '../public/favicon.svg?raw'
+
 const icon = (body) =>
   `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`
 
+// the mark drawn in VectorCraft (branding/meshboard-icon.vectorcraft)
+const logo = (size) =>
+  logoSource
+    .replace(/<\?xml[^>]*>\s*/, '')
+    .replace(/<title>[\s\S]*?<\/title>\s*/, '')
+    .replace(/\s(id|data-name)="[^"]*"/g, '')
+    .replace(/width="1024" height="1024"/, `width="${size}" height="${size}" aria-hidden="true" focusable="false"`)
+
 export const ICONS = {
-  logo: `<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" fill="#1f2937"/><g stroke="#fff59d" stroke-width="2" stroke-linecap="round"><path d="M9 10l14 3M9 10l5 13M23 13l-9 10"/></g><g fill="#fff"><circle cx="9" cy="10" r="3"/><circle cx="23" cy="13" r="3"/><circle cx="14" cy="23" r="3"/></g></svg>`,
+  logo: logo(28),
+  logoLarge: logo(44),
   select: icon('<path d="M5 3l14 8-6.2 1.6L9.6 19z"/>'),
   hand: icon(
     '<path d="M12 3v18M3 12h18"/><path d="M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/>',
@@ -30,4 +41,5 @@ export const ICONS = {
   keyboard: icon('<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>'),
   home: icon('<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>'),
   close: icon('<path d="M6 6l12 12M18 6L6 18"/>'),
+  install: icon('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 7v5.5M9.5 10L12 12.5 14.5 10M8 20h8"/>'),
 }

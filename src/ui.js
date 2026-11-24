@@ -1,4 +1,4 @@
-// Piccoli aiuti condivisi tra schermate.
+// Small helpers shared between screens.
 
 let toastBox = null
 
@@ -22,15 +22,15 @@ export function toast(message, { timeout = 4000, tone = '' } = {}) {
 
 export function readJsonFile(file) {
   return new Promise((resolve, reject) => {
-    if (!file) return reject(new Error('Nessun file selezionato.'))
-    if (file.size > 20 * 1024 * 1024) return reject(new Error('Il file è troppo grande (max 20 MB).'))
+    if (!file) return reject(new Error('No file selected.'))
+    if (file.size > 20 * 1024 * 1024) return reject(new Error('The file is too large (20 MB max).'))
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error('Impossibile leggere il file.'))
+    reader.onerror = () => reject(new Error("Couldn't read the file."))
     reader.onload = () => {
       try {
         resolve(JSON.parse(String(reader.result)))
       } catch {
-        reject(new Error('Il file non contiene JSON valido.'))
+        reject(new Error("The file doesn't contain valid JSON."))
       }
     }
     reader.readAsText(file)
@@ -57,20 +57,20 @@ export function slug(text) {
       .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-      .slice(0, 40) || 'lavagna'
+      .slice(0, 40) || 'board'
   )
 }
 
 export function relativeTime(ms) {
   const diff = Date.now() - ms
   const min = Math.round(diff / 60000)
-  if (min < 1) return 'adesso'
-  if (min < 60) return `${min} min fa`
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min} min ago`
   const h = Math.round(min / 60)
-  if (h < 24) return `${h} h fa`
+  if (h < 24) return `${h} h ago`
   const d = Math.round(h / 24)
-  if (d < 30) return d === 1 ? 'ieri' : `${d} giorni fa`
-  return new Date(ms).toLocaleDateString('it-IT')
+  if (d < 30) return d === 1 ? 'yesterday' : `${d} days ago`
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export async function copyText(text) {

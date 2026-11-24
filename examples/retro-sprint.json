@@ -1,0 +1,290 @@
+{
+  "format": "meshboard",
+  "version": 1,
+  "exportedAt": "2026-11-24T10:00:00.000Z",
+  "title": "Sprint 42 retro",
+  "users": {
+    "u-anna": "Anna",
+    "u-marco": "Marco",
+    "u-giulia": "Giulia",
+    "u-luca": "Luca"
+  },
+  "items": [
+    {
+      "z": 1,
+      "created": 1795500060000,
+      "id": "col-good",
+      "type": "rect",
+      "x": 0,
+      "y": 90,
+      "w": 540,
+      "h": 700,
+      "color": "green",
+      "text": "",
+      "author": "u-anna"
+    },
+    {
+      "z": 2,
+      "created": 1795500120000,
+      "id": "col-good-t",
+      "type": "text",
+      "x": 4,
+      "y": 20,
+      "w": 520,
+      "h": 56,
+      "color": "gray",
+      "text": "What went well",
+      "author": "u-anna"
+    },
+    {
+      "z": 3,
+      "created": 1795500180000,
+      "id": "col-bad",
+      "type": "rect",
+      "x": 600,
+      "y": 90,
+      "w": 540,
+      "h": 700,
+      "color": "orange",
+      "text": "",
+      "author": "u-anna"
+    },
+    {
+      "z": 4,
+      "created": 1795500240000,
+      "id": "col-bad-t",
+      "type": "text",
+      "x": 604,
+      "y": 20,
+      "w": 520,
+      "h": 56,
+      "color": "gray",
+      "text": "What to improve",
+      "author": "u-anna"
+    },
+    {
+      "z": 5,
+      "created": 1795500300000,
+      "id": "col-act",
+      "type": "rect",
+      "x": 1200,
+      "y": 90,
+      "w": 540,
+      "h": 700,
+      "color": "blue",
+      "text": "",
+      "author": "u-anna"
+    },
+    {
+      "z": 6,
+      "created": 1795500360000,
+      "id": "col-act-t",
+      "type": "text",
+      "x": 1204,
+      "y": 20,
+      "w": 520,
+      "h": 56,
+      "color": "gray",
+      "text": "Action items",
+      "author": "u-anna"
+    },
+    {
+      "z": 7,
+      "created": 1795500420000,
+      "id": "n1",
+      "type": "note",
+      "x": 30,
+      "y": 130,
+      "w": 220,
+      "h": 220,
+      "color": "blue",
+      "text": "Friday deploy with zero surprises 🎉",
+      "author": "u-marco",
+      "votes": {
+        "u-anna": 1,
+        "u-giulia": 1,
+        "u-luca": 1
+      }
+    },
+    {
+      "z": 8,
+      "created": 1795500480000,
+      "id": "n2",
+      "type": "note",
+      "x": 290,
+      "y": 150,
+      "w": 220,
+      "h": 220,
+      "color": "pink",
+      "text": "Pairing on the new editor: super fast",
+      "author": "u-giulia",
+      "votes": {
+        "u-marco": 1,
+        "u-anna": 1
+      }
+    },
+    {
+      "z": 9,
+      "created": 1795500540000,
+      "id": "n3",
+      "type": "note",
+      "x": 40,
+      "y": 390,
+      "w": 220,
+      "h": 220,
+      "color": "yellow",
+      "text": "The client demo went really well",
+      "author": "u-anna",
+      "votes": {
+        "u-marco": 1,
+        "u-luca": 1,
+        "u-giulia": 1
+      }
+    },
+    {
+      "z": 10,
+      "created": 1795500600000,
+      "id": "n4",
+      "type": "note",
+      "x": 300,
+      "y": 420,
+      "w": 220,
+      "h": 220,
+      "color": "purple",
+      "text": "Finally, a dashboard for errors",
+      "author": "u-luca",
+      "votes": {
+        "u-anna": 1
+      }
+    },
+    {
+      "z": 11,
+      "created": 1795500660000,
+      "id": "n7",
+      "type": "note",
+      "x": 630,
+      "y": 260,
+      "w": 220,
+      "h": 220,
+      "color": "pink",
+      "text": "Incoming tickets are unclear",
+      "author": "u-giulia",
+      "votes": {
+        "u-luca": 1,
+        "u-marco": -1
+      }
+    },
+    {
+      "z": 12,
+      "created": 1795500720000,
+      "id": "n5",
+      "type": "note",
+      "x": 890,
+      "y": 130,
+      "w": 220,
+      "h": 220,
+      "color": "purple",
+      "text": "Too many meetings on Monday mornings",
+      "author": "u-luca",
+      "votes": {
+        "u-anna": 1,
+        "u-marco": 1,
+        "u-giulia": 1
+      }
+    },
+    {
+      "z": 13,
+      "created": 1795500780000,
+      "id": "n6",
+      "type": "note",
+      "x": 890,
+      "y": 390,
+      "w": 220,
+      "h": 220,
+      "color": "blue",
+      "text": "End-to-end tests are slow: 14 min per run",
+      "author": "u-marco",
+      "votes": {
+        "u-anna": 1,
+        "u-luca": 1,
+        "u-giulia": -1
+      }
+    },
+    {
+      "z": 14,
+      "created": 1795500840000,
+      "id": "n8",
+      "type": "note",
+      "x": 1240,
+      "y": 130,
+      "w": 220,
+      "h": 220,
+      "color": "yellow",
+      "text": "Move the daily stand-up to 9:45",
+      "author": "u-anna",
+      "votes": {
+        "u-luca": 1,
+        "u-marco": 1
+      }
+    },
+    {
+      "z": 15,
+      "created": 1795500900000,
+      "id": "n9",
+      "type": "note",
+      "x": 1240,
+      "y": 390,
+      "w": 220,
+      "h": 220,
+      "color": "purple",
+      "text": "Split CI across 4 runners",
+      "author": "u-luca",
+      "votes": {
+        "u-marco": 1,
+        "u-giulia": 1,
+        "u-anna": 1
+      }
+    },
+    {
+      "z": 16,
+      "created": 1795500960000,
+      "id": "e1",
+      "type": "ellipse",
+      "x": 1490,
+      "y": 210,
+      "w": 220,
+      "h": 150,
+      "color": "pink",
+      "text": "Ship 2.0 by the 15th",
+      "author": "u-giulia"
+    },
+    {
+      "z": 17,
+      "created": 1795501020000,
+      "id": "a1",
+      "type": "arrow",
+      "from": "n5",
+      "to": "n8",
+      "x1": 0,
+      "y1": 0,
+      "x2": 0,
+      "y2": 0,
+      "color": "gray",
+      "author": "u-anna"
+    },
+    {
+      "z": 18,
+      "created": 1795501080000,
+      "id": "a2",
+      "type": "arrow",
+      "from": "n6",
+      "to": "n9",
+      "x1": 0,
+      "y1": 0,
+      "x2": 0,
+      "y2": 0,
+      "color": "gray",
+      "author": "u-anna"
+    }
+  ]
+}
