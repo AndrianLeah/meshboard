@@ -13,8 +13,10 @@ const repoUrl: string = import.meta.env.VITE_REPO_URL || ''
 
 /** The screen on show: closing it releases its listeners (and leaves the board's room). */
 let current: { close: () => void | Promise<void> } | null = null
-/** An export to load into the board about to be created. */
-let pendingData: BoardExport | null = null
+/** What the screen on show was opened for: a hash change fires both popstate and hashchange. */
+let shownFor = ''
+/** The board about to be created here, with the export to load into it, if any. */
+let pending: { data: BoardExport | null } | null = null
 let queue = Promise.resolve()
 
 // navigations are queued: the previous board closes before the next one opens
@@ -26,17 +28,20 @@ function route() {
 }
 
 async function doRoute() {
+  const parsed = parseToken(location.hash)
+  const user = getUser()
+  const target = parsed && user.name ? `board:${parsed.token}` : `home:${location.hash}`
+  if (current && target === shownFor) return
+  shownFor = target
   if (current) {
     const prev = current
     current = null
     await prev.close()
   }
-  const parsed = parseToken(location.hash)
-  const user = getUser()
   if (parsed && user.name) {
-    const initialData = pendingData
-    pendingData = null
-    current = await openBoard(root, parsed, user, { initialData, goHome })
+    const created = pending
+    pending = null
+    current = await openBoard(root, parsed, user, { initialData: created?.data, isNew: Boolean(created), goHome })
   } else {
     current = renderHome(root, { user, parsed, enter, create, repoUrl })
   }
@@ -50,7 +55,7 @@ function enter(token: string, name: string) {
 
 function create(name: string, data: BoardExport | null = null) {
   setUserName(name)
-  pendingData = data
+  pending = { data }
   location.hash = newToken()
 }
 

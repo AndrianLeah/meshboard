@@ -42,8 +42,8 @@ export function joinBoardRoom(
     {
       appId: APP_ID,
       password: secret,
-      // optional TURN for locked-down networks, see the README
-      ...(turnConfig ? { turnConfig } : {}),
+      // optional TURN relays for networks that block direct connections, see ice.ts
+      ...(turnConfig?.length ? { turnConfig } : {}),
     },
     roomId,
   )

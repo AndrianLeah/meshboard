@@ -6,7 +6,16 @@ import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   {
-    ignores: ['dist/', 'coverage/', 'playwright-report/', 'test-results/', 'mockup/', 'public/', 'branding/'],
+    ignores: [
+      'dist/',
+      'coverage/',
+      'playwright-report/',
+      'test-results/',
+      'mockup/',
+      'public/',
+      'branding/',
+      '.claude/',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -6,6 +6,11 @@ interface ImportMetaEnv {
   readonly VITE_REPO_URL?: string
   /** the public address, for link previews (og:image) */
   readonly VITE_SITE_URL?: string
+  /** optional TURN relays, see src/sync/ice.ts and the README */
+  readonly VITE_TURN_URLS?: string
+  readonly VITE_TURN_USERNAME?: string
+  readonly VITE_TURN_CREDENTIAL?: string
+  readonly VITE_TURN_CREDENTIALS_URL?: string
 }
 
 interface ImportMeta {
