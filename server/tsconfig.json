@@ -1,0 +1,9 @@
+{
+  // The server runs on Node with its types stripped: type-checked only, like the app.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "../src/env.d.ts"],
+  "exclude": []
+}

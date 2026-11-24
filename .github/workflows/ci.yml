@@ -26,6 +26,48 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  postgres:
+    name: Server tests on Postgres
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: meshboard
+          POSTGRES_PASSWORD: meshboard
+          POSTGRES_DB: meshboard
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U meshboard"
+          --health-interval 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # one test file at a time: they share the database
+      - run: node --disable-warning=ExperimentalWarning --test --test-concurrency=1 "server/test/*.test.ts"
+        env:
+          TEST_DATABASE_URL: postgres://meshboard:meshboard@localhost:5432/meshboard
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t meshboard:ci .
+      - name: Starts, answers, and runs as an unprivileged user
+        run: |
+          docker run -d --name mb -p 8080:8080 -e MESHBOARD_URL=http://localhost:8080 meshboard:ci
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/healthz && break; sleep 1; done
+          curl -fs http://localhost:8080/config.json | grep -q '"mode":"server"'
+          curl -fs http://localhost:8080/ | grep -q '<base href="/"'
+          test "$(docker exec mb id -u)" != "0"
+          docker logs mb
+
   e2e:
     name: End-to-end (Chromium)
     runs-on: ubuntu-latest

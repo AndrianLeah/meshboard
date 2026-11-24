@@ -15,6 +15,7 @@ export default tseslint.config(
       'public/',
       'branding/',
       '.claude/',
+      'server/test/fixtures/',
     ],
   },
   js.configs.recommended,
@@ -40,6 +41,15 @@ export default tseslint.config(
   {
     files: ['src/app/sw.ts'],
     languageOptions: { globals: globals.serviceworker },
+  },
+  {
+    files: ['server/**/*.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { 'no-console': 'error' },
+  },
+  {
+    files: ['server/test/**/*.ts'],
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['test/**/*.ts', 'scripts/**/*.ts', 'e2e/**/*.ts', '*.config.ts'],

@@ -22,3 +22,13 @@ updates:
       actions-security:
         applies-to: security-updates
         patterns: ['*']
+  # the self-hosted image's base (Dockerfile)
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns: ['*']

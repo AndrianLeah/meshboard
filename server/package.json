@@ -1,0 +1,30 @@
+{
+  "name": "meshboard-server",
+  "version": "2.0.0",
+  "description": "Self-hosted Meshboard: the app, live sync and boards kept in a database of its own.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "meshboard": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/main.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "@types/ws": "8.18.2"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "4.9.0",
+    "kysely": "0.29.9",
+    "openid-client": "6.9.1",
+    "pg": "8.23.1",
+    "ws": "8.23.0",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.33"
+  }
+}

@@ -1,0 +1,39 @@
+# Meshboard for an organisation: its own Postgres database, and sign-in through your OpenID
+# Connect provider (Okta, Entra ID, Google Workspace, Keycloak, Auth0…). Put it behind your HTTPS
+# reverse proxy at MESHBOARD_URL. Secrets come from a .env file next to this one.
+#   docker compose -f deploy/compose.postgres.yml up -d
+services:
+  meshboard:
+    image: ghcr.io/andrianleah/meshboard:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ['127.0.0.1:8080:8080']
+    environment:
+      MESHBOARD_URL: https://board.example.com
+      ORG_NAME: Acme
+      DATABASE_URL: postgres://meshboard:${DB_PASSWORD}@db:5432/meshboard
+      SESSION_SECRET: ${SESSION_SECRET}
+      AUTH: oidc
+      OIDC_ISSUER: https://login.example.com
+      OIDC_CLIENT_ID: meshboard
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      OIDC_GROUPS_CLAIM: groups
+      ADMIN_GROUP: it
+      # your reverse proxy, so the real client address is used for rate limits
+      TRUSTED_PROXIES: 172.16.0.0/12
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: meshboard
+      POSTGRES_USER: meshboard
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: ['postgres:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meshboard']
+      interval: 5s
+      retries: 10
+volumes:
+  postgres:

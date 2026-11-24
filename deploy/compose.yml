@@ -1,0 +1,14 @@
+# The simplest self-hosted Meshboard: SQLite in a volume, people sign in with a name.
+# Good for trying it out or a small team on a private network.
+#   docker compose -f deploy/compose.yml up
+services:
+  meshboard:
+    image: ghcr.io/andrianleah/meshboard:latest
+    restart: unless-stopped
+    ports: ['8080:8080']
+    volumes: ['meshboard:/data']
+    environment:
+      MESHBOARD_URL: http://localhost:8080
+      ORG_NAME: Your team
+volumes:
+  meshboard:
