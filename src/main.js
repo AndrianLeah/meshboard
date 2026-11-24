@@ -3,6 +3,7 @@ import { getUser, setUserName, parseToken, newToken } from './identity.js'
 import { renderHome } from './home.js'
 import { openBoard } from './app.js'
 import { toast } from './ui.js'
+import { setupPwa } from './pwa.js'
 
 const root = document.getElementById('app')
 const repoUrl = import.meta.env.VITE_REPO_URL || ''
@@ -11,11 +12,11 @@ let current = null
 let pendingData = null
 let queue = Promise.resolve()
 
-// le navigazioni sono in coda: si chiude la lavagna precedente prima di aprirne un'altra
+// navigations are queued: the previous board closes before the next one opens
 function route() {
   queue = queue.then(doRoute).catch((err) => {
     console.error(err)
-    toast(`Qualcosa è andato storto: ${err.message || err}`, { tone: 'error', timeout: 8000 })
+    toast(`Something went wrong: ${err.message || err}`, { tone: 'error', timeout: 8000 })
   })
 }
 
@@ -53,6 +54,7 @@ function goHome() {
   route()
 }
 
+setupPwa()
 window.addEventListener('hashchange', route)
 window.addEventListener('popstate', route)
 route()

@@ -1,5 +1,5 @@
-// Identità locale (username + id), token di sessione e lavagne recenti.
-// Tutto vive nel localStorage del browser: non esiste un account.
+// Local identity (name + id), session tokens and recent boards.
+// Everything lives in the browser's localStorage: there are no accounts.
 
 const KEY_USER = 'meshboard:user'
 const KEY_RECENT = 'meshboard:recent'
@@ -17,7 +17,7 @@ function writeJSON(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    /* storage pieno o bloccato: si continua senza ricordare */
+    /* storage full or blocked: carry on without remembering */
   }
 }
 
@@ -29,7 +29,7 @@ export function randomId(bytes = 8) {
     .replace(/=+$/, '')
 }
 
-/** Utente locale: {id, name}. L'id è stabile per questo browser. */
+/** Local user: {id, name}. The id is stable for this browser. */
 export function getUser() {
   const u = readJSON(KEY_USER, null)
   if (u && typeof u.id === 'string') return { id: u.id, name: u.name || '' }
@@ -45,8 +45,8 @@ export function setUserName(name) {
   return u
 }
 
-// Il token è "<roomId>.<segreto>": il roomId individua la stanza sui relay,
-// il segreto cifra l'handshake, quindi chi non ha il link non può entrare.
+// The token is "<roomId>.<secret>": the roomId identifies the room on the relays
+// and the secret encrypts the handshake, so nobody without the link can join.
 export function newToken() {
   return `${randomId(12)}.${randomId(16)}`
 }
@@ -75,7 +75,7 @@ export function getRecent() {
 
 export function touchRecent(token, title) {
   const list = getRecent().filter((r) => r.token !== token)
-  list.unshift({ token, title: title || 'Lavagna senza titolo', opened: Date.now() })
+  list.unshift({ token, title: title || 'Untitled board', opened: Date.now() })
   writeJSON(KEY_RECENT, list.slice(0, 20))
 }
 
@@ -86,7 +86,7 @@ export function forgetRecent(token) {
   )
 }
 
-/** Colore stabile per un id utente (cursori e avatar). */
+/** Stable colour for a user id (cursors and avatars). */
 export function userColor(id) {
   let h = 0
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0

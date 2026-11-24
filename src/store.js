@@ -1,5 +1,5 @@
-// Modello dati condiviso (Yjs). Ogni elemento della lavagna è una Y.Map
-// dentro `items`, così modifiche concorrenti a campi diversi si fondono.
+// Shared data model (Yjs). Every board item is a Y.Map inside `items`, so
+// concurrent edits to different fields merge cleanly.
 import * as Y from 'yjs'
 import { arrowEnds, bounds, normRect } from './geometry.js'
 import { randomId } from './identity.js'
@@ -16,7 +16,7 @@ export const COLORS = {
 }
 export const COLOR_KEYS = Object.keys(COLORS)
 export const TYPES = ['note', 'rect', 'ellipse', 'text', 'arrow']
-export const DEFAULT_TITLE = 'Lavagna senza titolo'
+export const DEFAULT_TITLE = 'Untitled board'
 export const EXPORT_FORMAT = 'meshboard'
 export const EXPORT_VERSION = 1
 
@@ -31,7 +31,7 @@ const num = (v, d = 0) => {
 }
 const str = (v, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '')
 
-/** Normalizza un elemento letto da un file o da un altro peer. */
+/** Normalises an item read from a file or from another peer. */
 export function sanitizeItem(raw) {
   if (!raw || typeof raw !== 'object' || !TYPES.includes(raw.type)) return null
   const it = {
@@ -126,7 +126,7 @@ export function createStore(me) {
     return id
   }
 
-  /** patches: {id: {campo: valore}} applicate in un'unica transazione. */
+  /** patches: {id: {field: value}} applied in a single transaction. */
   function update(patches) {
     doc.transact(() => {
       for (const [id, patch] of Object.entries(patches)) {
@@ -143,7 +143,7 @@ export function createStore(me) {
   function remove(ids) {
     const gone = new Set(ids)
     doc.transact(() => {
-      // le frecce agganciate a un elemento eliminato spariscono con lui
+      // arrows attached to a deleted item go with it
       items.forEach((m, id) => {
         if (m.get('type') === 'arrow' && (gone.has(m.get('from')) || gone.has(m.get('to')))) {
           gone.add(id)
@@ -157,7 +157,7 @@ export function createStore(me) {
   function vote(id, value) {
     const m = items.get(id)
     if (!(m instanceof Y.Map) || m.get('type') !== 'note') return
-    if (m.get('author') === me.id) return // niente voti ai propri post-it
+    if (m.get('author') === me.id) return // no votes on your own notes
     doc.transact(() => {
       let votes = m.get('votes')
       if (!(votes instanceof Y.Map)) {
@@ -201,7 +201,7 @@ export function createStore(me) {
     return [...idMap.values()]
   }
 
-  // un estremo che perde l'aggancio resta dov'era disegnato
+  // an end that loses its attachment stays where it was drawn
   function freeEnds(orig, copy, offset) {
     const e = arrowEnds(orig, get)
     const out = {}
@@ -218,7 +218,7 @@ export function createStore(me) {
 
   const userName = (id) => {
     const n = users.get(id)
-    return typeof n === 'string' && n ? n : 'Anonimo'
+    return typeof n === 'string' && n ? n : 'Anonymous'
   }
   function registerUser(id, name) {
     if (name && users.get(id) !== name) doc.transact(() => users.set(id, name), 'user')
@@ -227,7 +227,7 @@ export function createStore(me) {
   function exportData() {
     const list = all().map((it) => {
       const out = { ...it }
-      if (it.type === 'arrow') Object.assign(out, arrowEnds(it, get)) // posizioni reali
+      if (it.type === 'arrow') Object.assign(out, arrowEnds(it, get)) // actual positions
       return out
     })
     return {
@@ -241,20 +241,20 @@ export function createStore(me) {
   }
 
   /**
-   * Importa un export. Con `keepIds` (lavagna nuova) gli id e le posizioni
-   * restano quelli del file; altrimenti il contenuto viene aggiunto con id
-   * nuovi, a destra di quello esistente. Ritorna gli id creati.
+   * Imports an export. With `keepIds` (a new board) ids and positions are kept
+   * from the file; otherwise the content is added with new ids, to the right of
+   * what's already there. Returns the created ids.
    */
   function importData(data, { keepIds = false } = {}) {
     if (!data || data.format !== EXPORT_FORMAT || !Array.isArray(data.items)) {
-      throw new Error('Il file non è un export di Meshboard.')
+      throw new Error("This file isn't a Meshboard export.")
     }
     const raw = data.items.filter((r) => r && typeof r.id === 'string').slice(0, 5000)
     const idMap = new Map(raw.map((r) => [r.id, keepIds ? r.id.slice(0, 64) : randomId(8)]))
     const created = []
     const zBase = keepIds ? 0 : zRange().max + 1
     const shift = keepIds ? { dx: 0, dy: 0 } : besideExisting(raw)
-    undoManager.stopCapturing() // l'import è un passo di "annulla" a sé
+    undoManager.stopCapturing() // an import is an undo step of its own
     doc.transact(() => {
       if (data.users && typeof data.users === 'object') {
         for (const [uid, name] of Object.entries(data.users)) {
@@ -286,7 +286,7 @@ export function createStore(me) {
     return created
   }
 
-  // spostamento che mette il contenuto importato a destra di quello esistente
+  // offset that places imported content to the right of the existing content
   function besideExisting(raw) {
     const box = (list, rectOf) => {
       let x1 = Infinity

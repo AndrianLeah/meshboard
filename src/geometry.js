@@ -1,10 +1,10 @@
-// Geometria pura: nessun accesso al DOM né allo stato condiviso.
+// Pure geometry: no DOM, no shared state.
 
 export function center(it) {
   return { x: it.x + it.w / 2, y: it.y + it.h / 2 }
 }
 
-/** Punto sul bordo di `it` lungo la retta dal suo centro verso `toward`. */
+/** Point on the edge of `it`, on the line from its centre towards `toward`. */
 export function edgePoint(it, toward, gap = 6) {
   const c = center(it)
   const dx = toward.x - c.x
@@ -22,8 +22,8 @@ export function edgePoint(it, toward, gap = 6) {
 }
 
 /**
- * Estremi effettivi di una freccia. Un estremo agganciato a un elemento
- * segue l'elemento; uno libero usa le coordinate salvate.
+ * Actual end points of an arrow. An end attached to an item follows the item;
+ * a free end uses its stored coordinates.
  */
 export function arrowEnds(a, getItem) {
   const from = a.from ? getItem(a.from) : null
@@ -37,7 +37,7 @@ export function arrowEnds(a, getItem) {
   return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }
 }
 
-/** Rettangolo che contiene un elemento (frecce comprese). */
+/** Bounding box of an item (arrows included). */
 export function bounds(it, getItem) {
   if (it.type === 'arrow') {
     const e = arrowEnds(it, getItem)

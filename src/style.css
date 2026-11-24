@@ -52,7 +52,7 @@ textarea {
   outline-offset: 2px;
 }
 
-/* ---------- componenti di base ---------- */
+/* ---------- base components ---------- */
 
 .card {
   background: var(--surface);
@@ -125,7 +125,7 @@ textarea {
   color: var(--danger);
 }
 
-/* ---------- lavagna ---------- */
+/* ---------- board ---------- */
 
 .board-app {
   position: fixed;
@@ -221,7 +221,7 @@ textarea {
 .item.ellipse {
   padding: 12px;
   border: 2.5px solid var(--stroke);
-  background: color-mix(in srgb, var(--fill) 45%, white);
+  background: color-mix(in srgb, var(--fill) 30%, white);
   border-radius: 6px;
   text-align: center;
   font-size: 16px;
@@ -424,7 +424,7 @@ textarea {
   pointer-events: none;
 }
 
-/* ---------- barre ---------- */
+/* ---------- bars ---------- */
 
 .topbar {
   position: absolute;
@@ -832,7 +832,7 @@ dialog.help form {
   color: inherit;
 }
 
-/* ---------- schermi stretti ---------- */
+/* ---------- narrow screens ---------- */
 
 @media (max-width: 640px) {
   .status-text,
@@ -847,11 +847,26 @@ dialog.help form {
   }
   .toolbar {
     top: auto;
-    bottom: 12px;
-    transform: none;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 50%;
+    flex-direction: row;
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    transform: translateX(-50%);
   }
   .toolbar hr {
-    margin: 2px auto;
+    width: 0;
+    height: 24px;
+    margin: auto 3px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .zoombar {
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    flex-direction: column;
+  }
+  .toasts {
+    bottom: calc(124px + env(safe-area-inset-bottom));
   }
   .toolbar .icon-btn,
   .zoombar .icon-btn {
