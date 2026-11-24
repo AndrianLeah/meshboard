@@ -2,15 +2,15 @@
   "id": "./",
   "name": "Meshboard",
   "short_name": "Meshboard",
-  "description": "A peer-to-peer team whiteboard with no server and no accounts: sticky notes, shapes, arrows and votes in real time.",
+  "description": "A peer-to-peer team whiteboard with no server and no accounts: sticky notes, shapes, frames, connectors and emoji reactions in real time.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f6f6f3",
-  "theme_color": "#f6f6f3",
+  "background_color": "#f5f5f2",
+  "theme_color": "#f5f5f2",
   "categories": [
     "productivity",
     "business",
@@ -48,7 +48,7 @@
       "sizes": "1600x1000",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "A team retrospective with sticky notes, votes and live cursors"
+      "label": "A team retrospective with frames, sticky notes, emoji reactions and live cursors"
     },
     {
       "src": "screenshots/board-narrow.png",

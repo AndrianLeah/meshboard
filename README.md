@@ -6,7 +6,7 @@
 
 **The team whiteboard with no server.**
 
-Sticky notes, shapes, arrows and 👍 / 👎 votes in real time.<br />
+Sticky notes, shapes, frames, connectors and emoji reactions in real time.<br />
 Browsers talk to each other directly: no accounts, no backend, nothing to pay for.
 
 [**Open Meshboard →**](https://andrianleah.github.io/meshboard/) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Host your own](#host-your-own-in-5-minutes)
@@ -20,7 +20,7 @@ Browsers talk to each other directly: no accounts, no backend, nothing to pay fo
 
 <br />
 
-![A sprint retro in Meshboard: three columns of sticky notes with votes, arrows and the live cursors of two teammates](public/screenshots/board-wide.png)
+![A sprint retro in Meshboard: three frames of sticky notes with emoji reactions, connectors, a selected note with its context bar and the live cursors of two teammates](public/screenshots/board-wide.png)
 
 ## Why
 
@@ -33,9 +33,11 @@ participants' browsers.
 
 | | |
 | --- | --- |
-| 🗒️ **Sticky notes, shapes and text** | Rectangles, ellipses, text and eight colours. Double-click anywhere for a new note. |
-| ↗️ **Connected arrows** | Link two items and the arrow follows them when they move. |
-| 👍 **Votes** | Thumbs up or down on your teammates' notes: one vote each, hover to see who voted. |
+| 🗒️ **Sticky notes that fit their text** | Text is centred and sized to fit the note. Double-click anywhere for a new note, or use the **+** around a selected one to add the next. |
+| 🔷 **Shapes, text, frames and a pen** | Rectangles, ovals, triangles, diamonds, text boxes and freehand strokes in eight colours. Frames are titled sheets that carry their content when they move. |
+| ↗️ **Connectors** | Drag from the dots around any item to another one: the line follows both. Arrow ends and dashed lines from the context bar. |
+| 🎉 **Reactions** | Any emoji on any note, from a searchable picker that remembers your favourites. Hover a chip to see who reacted. |
+| 🧭 **Familiar controls** | Context bar above the selection, right-click menu, smart guides, copy and paste, groups, locks and the shortcuts other whiteboards use (press <kbd>?</kbd>). |
 | 🖱️ **Live presence** | See who's online and where their cursor is, in real time. |
 | ↩️ **Personal undo** | Undo and redo only touch your own changes, never a teammate's. |
 | 💾 **Import / export** | Save a board as JSON, add it to another board or start a new one from the file. |
@@ -44,7 +46,7 @@ participants' browsers.
 
 <table>
   <tr>
-    <td width="62%"><img src="docs/detail-votes.png" alt="Close-up of sticky notes with vote counts, arrows and a teammate's cursor" /></td>
+    <td width="62%"><img src="docs/detail-reactions.png" alt="Close-up of sticky notes with emoji reactions, connectors and a teammate's cursor" /></td>
     <td width="38%"><img src="public/screenshots/board-narrow.png" alt="The same board on a phone" /></td>
   </tr>
 </table>
@@ -104,7 +106,7 @@ Meshboard is a static site: GitHub Pages is all it needs.
   browsers that had it. Use **Export** to keep a long-term copy.
 - **Some corporate networks block peer-to-peer.** If teammates can't connect, add a TURN server
   (Cloudflare and Metered have free tiers) by passing `turnConfig` to `connect()` in
-  [`src/sync.js`](src/sync.js).
+  [`src/sync/index.js`](src/sync/index.js).
 - **Made for teams, not crowds.** Every browser connects to every other one: perfect for a team,
   not for hundreds of people on the same board.
 
@@ -115,21 +117,26 @@ Requires Node 22 or later.
 ```bash
 npm install
 npm run dev     # http://localhost:5173
-npm test        # data model tests (votes, arrows, import/export)
+npm test        # model, geometry, files, clipboard and keymap tests
+npm run tokens  # regenerate src/styles/tokens.css from mockup/tokens/variables.css
 npm run build   # production build in dist/, service worker included
 ```
 
 To simulate two people on one machine, open the app on both `http://localhost:5173` and
 `http://127.0.0.1:5173` (or in a private window): each one gets its own name and storage.
 
-| File | What it does |
+The interface is built on a small design system: colours, spacing, radii and sizes are tokens exported
+from the FigCraft mockup ([`mockup/`](mockup/)), and every control comes from the same primitives.
+
+| Folder | What it holds |
 | --- | --- |
-| [`src/store.js`](src/store.js) | Yjs data model: items, votes, title, import/export |
-| [`src/sync.js`](src/sync.js) | IndexedDB + Trystero: sync and presence |
-| [`src/board.js`](src/board.js) | Canvas: rendering, tools, selection, pan and zoom |
-| [`src/app.js`](src/app.js) | Board screen: toolbars, menu, sharing |
-| [`src/home.js`](src/home.js) | Home screen |
-| [`src/pwa.js`](src/pwa.js), [`src/sw.js`](src/sw.js) | Install prompt and offline service worker |
+| [`src/core/`](src/core/) | The board model on Yjs, item schema and migrations, geometry, clipboard and files (no DOM: tested in Node) |
+| [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero) and presence |
+| [`src/board/`](src/board/) | The canvas: view (pan, zoom, wheel), renderers, overlay and one file per tool |
+| [`src/commands/`](src/commands/) | Every action by id, and the one shortcut table behind keys, tooltips and the shortcuts panel |
+| [`src/ui/`](src/ui/) | Toolbar, context bar, menus, emoji picker; [`ui/ds/`](src/ui/ds/) is the design system's JavaScript side |
+| [`src/styles/`](src/styles/) | Generated tokens, the design system ([`ds/`](src/styles/ds/)) and layout |
+| [`src/pages/`](src/pages/), [`src/app/`](src/app/) | Home and board screens; install prompt and offline service worker |
 
 <details>
 <summary><strong>Export format</strong></summary>
@@ -137,21 +144,27 @@ To simulate two people on one machine, open the app on both `http://localhost:51
 ```json
 {
   "format": "meshboard",
-  "version": 1,
+  "version": 2,
   "title": "Sprint 42 retro",
   "users": { "<id>": "Anna" },
   "items": [
     { "id": "n1", "type": "note", "x": 0, "y": 0, "w": 220, "h": 220,
       "color": "yellow", "text": "Move the daily stand-up to 9:45",
-      "author": "<id>", "votes": { "<id>": 1 } },
+      "author": "<id>", "reactions": { "🎉": { "<id>": 1795500000000 } } },
+    { "id": "f1", "type": "frame", "x": -40, "y": -40, "w": 600, "h": 400,
+      "color": "gray", "text": "Action items" },
     { "id": "a1", "type": "arrow", "from": "n1", "to": "n2",
-      "x1": 0, "y1": 0, "x2": 0, "y2": 0, "color": "gray" }
+      "x1": 0, "y1": 0, "x2": 0, "y2": 0, "color": "gray",
+      "start": "none", "end": "arrow", "dash": false }
   ]
 }
 ```
 
-Item types are `note`, `rect`, `ellipse`, `text` and `arrow`. Arrows store their end points
-(`x1, y1, x2, y2`) and, when attached, the ids of the items they connect (`from`, `to`).
+Item types are `note`, `rect`, `ellipse`, `triangle`, `diamond`, `text`, `frame`, `path` (pen
+strokes) and `arrow`. Arrows store their end points (`x1, y1, x2, y2`) and, when attached, the ids
+of the items they connect (`from`, `to`). Any item can carry `locked` and a `group` id. Reactions
+map each emoji to who reacted and when. Version 1 files still open: their 👍 / 👎 votes become
+reactions.
 
 </details>
 

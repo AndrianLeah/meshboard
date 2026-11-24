@@ -1,0 +1,178 @@
+/*
+ * Where the board's chrome sits (top bars, tools, history, zoom, context bar) and the inner
+ * layout of the shortcuts panel and the emoji picker. Every surface and control inside them
+ * comes from the design system.
+ */
+.topbar,
+.toolbar,
+.history,
+.zoom,
+.context-bar {
+  position: absolute;
+  z-index: var(--z-chrome);
+}
+
+/* top bars */
+.topbar {
+  top: calc(var(--space-3) + var(--safe-top));
+  right: var(--space-3);
+  left: var(--space-3);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.topbar > * {
+  pointer-events: auto;
+}
+.topbar__board {
+  min-width: 0;
+}
+.topbar__home {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--size-tool);
+  height: var(--size-tool);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+}
+.topbar__home:hover {
+  background: var(--surface-hover);
+}
+.topbar__title {
+  width: 240px;
+  min-width: 80px;
+}
+.topbar__share {
+  padding-left: var(--space-3);
+}
+
+/* tools, history and zoom */
+.toolbar {
+  top: 50%;
+  left: var(--space-3);
+  transform: translateY(-50%);
+}
+.history {
+  bottom: calc(var(--space-3) + var(--safe-bottom));
+  left: var(--space-3);
+}
+.zoom {
+  right: var(--space-3);
+  bottom: calc(var(--space-3) + var(--safe-bottom));
+}
+.zoom__level {
+  min-width: 64px;
+  padding: 0 var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the context bar is placed by script, above or below the selection */
+.context-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+.context-bar__color {
+  margin: 0 var(--space-2);
+}
+
+/* phones: tools in a bar at the bottom, history above it, no zoom bar (pinch instead) */
+@media (max-width: 640px) {
+  .toolbar {
+    top: auto;
+    right: var(--space-3);
+    bottom: calc(var(--space-3) + var(--safe-bottom));
+    flex-direction: row;
+    justify-content: space-between;
+    overflow-x: auto;
+    transform: none;
+  }
+  .toolbar > .ds-separator {
+    width: 1px;
+    height: 20px;
+    margin: 0 var(--space-1);
+  }
+  .history {
+    bottom: calc(var(--size-bar) + var(--space-5) + var(--safe-bottom));
+    flex-direction: row;
+  }
+  .zoom {
+    display: none;
+  }
+  .topbar__title {
+    width: 34vw;
+  }
+}
+
+/* keyboard shortcuts panel */
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+}
+.shortcuts__list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-3) 0 0;
+}
+.shortcuts__list dt,
+.shortcuts__list dd {
+  margin: 0;
+}
+.shortcuts__list dd {
+  text-align: right;
+}
+@media (max-width: 820px) {
+  .shortcuts {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+}
+
+/* emoji picker: 9 columns of 32 px, 8 rows visible */
+.emoji-picker {
+  display: flex;
+  flex-direction: column;
+  width: calc(9 * 32px + 2 * var(--space-2));
+}
+.emoji-picker__search {
+  padding: var(--space-2);
+}
+.emoji-picker__grid {
+  height: 264px;
+  padding: var(--space-2);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.emoji-picker__grid::-webkit-scrollbar {
+  display: none;
+}
+.emoji-picker__cells,
+.emoji-picker__frequent {
+  display: grid;
+  grid-template-columns: repeat(9, 32px);
+}
+.emoji-picker__frequent {
+  padding: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+.emoji-picker__cell {
+  font-size: 20px;
+}
+.emoji-picker__message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-6) var(--space-2);
+  text-align: center;
+}

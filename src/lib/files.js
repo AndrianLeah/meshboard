@@ -1,24 +1,4 @@
-// Small helpers shared between screens.
-
-let toastBox = null
-
-export function toast(message, { timeout = 4000, tone = '' } = {}) {
-  if (!toastBox || !toastBox.isConnected) {
-    toastBox = document.createElement('div')
-    toastBox.className = 'toasts'
-    toastBox.setAttribute('role', 'status')
-    toastBox.setAttribute('aria-live', 'polite')
-    document.body.append(toastBox)
-  }
-  const t = document.createElement('div')
-  t.className = `toast ${tone}`
-  t.textContent = message
-  toastBox.append(t)
-  setTimeout(() => {
-    t.classList.add('out')
-    setTimeout(() => t.remove(), 300)
-  }, timeout)
-}
+// Files and text helpers shared between screens.
 
 export function readJsonFile(file) {
   return new Promise((resolve, reject) => {

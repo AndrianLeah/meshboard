@@ -1,0 +1,53 @@
+/*
+ * Design system · surfaces
+ * The panel recipe every floating piece of chrome shares, the bar that lines up controls inside it,
+ * and the separator between groups.
+ */
+.ds-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+.ds-panel--popover {
+  box-shadow: var(--shadow-popover);
+}
+.ds-panel--dialog {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dialog);
+}
+
+.ds-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-1);
+}
+.ds-bar--vertical {
+  flex-direction: column;
+}
+.ds-bar--spaced {
+  gap: var(--space-2);
+}
+
+.ds-separator {
+  flex: none;
+  align-self: center;
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--space-1);
+  border: 0;
+  background: var(--line);
+}
+.ds-bar--vertical > .ds-separator,
+.ds-separator--horizontal {
+  width: 24px;
+  height: 1px;
+  margin: var(--space-1) auto;
+}
+
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

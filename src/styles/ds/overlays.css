@@ -1,0 +1,104 @@
+/*
+ * Design system · overlays
+ * Popovers (menus, palettes, pickers), tooltips, dialogs and toasts.
+ */
+.ds-popover {
+  position: fixed;
+  z-index: var(--z-popover);
+  max-width: calc(100vw - 16px);
+  animation: ds-pop-in var(--duration) var(--ease);
+}
+
+.ds-tooltip {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 6px 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-tooltip);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+.ds-tooltip--plain {
+  padding-right: 10px;
+}
+.ds-tooltip.is-visible {
+  opacity: 1;
+}
+
+.ds-dialog {
+  width: min(860px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: var(--space-6) 28px;
+  overflow: auto;
+  color: var(--text-primary);
+  background: var(--surface);
+}
+.ds-dialog::backdrop {
+  background: var(--scrim);
+}
+.ds-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.ds-dialog__footer {
+  margin: var(--space-5) 0 0;
+}
+.ds-dialog--small {
+  width: min(400px, calc(100vw - 32px));
+  padding: var(--space-5) var(--space-6);
+}
+.ds-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ds-toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + var(--safe-bottom));
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.ds-toast {
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--text-base);
+  line-height: var(--leading-tight);
+  box-shadow: var(--shadow-popover);
+  animation: ds-pop-in var(--duration) var(--ease);
+  transition: opacity 250ms;
+}
+.ds-toast--danger {
+  background: var(--danger);
+}
+.ds-toast.is-leaving {
+  opacity: 0;
+}
+
+@keyframes ds-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

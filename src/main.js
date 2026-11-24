@@ -1,9 +1,11 @@
-import './style.css'
-import { getUser, setUserName, parseToken, newToken } from './identity.js'
-import { renderHome } from './home.js'
-import { openBoard } from './app.js'
-import { toast } from './ui.js'
-import { setupPwa } from './pwa.js'
+// Boot and routing: the home screen, or the board named by the link's #token.
+import '@fontsource-variable/inter'
+import './styles/index.css'
+import { installTooltips, toast } from './ui/ds/index.js'
+import { getUser, setUserName, parseToken, newToken } from './core/identity.js'
+import { renderHome } from './pages/home.js'
+import { openBoard } from './pages/board-page.js'
+import { setupPwa } from './app/pwa.js'
 
 const root = document.getElementById('app')
 const repoUrl = import.meta.env.VITE_REPO_URL || ''
@@ -16,7 +18,7 @@ let queue = Promise.resolve()
 function route() {
   queue = queue.then(doRoute).catch((err) => {
     console.error(err)
-    toast(`Something went wrong: ${err.message || err}`, { tone: 'error', timeout: 8000 })
+    toast(`Something went wrong: ${err.message || err}`, { tone: 'danger', timeout: 8000 })
   })
 }
 
@@ -55,6 +57,7 @@ function goHome() {
 }
 
 setupPwa()
+installTooltips(document.body)
 window.addEventListener('hashchange', route)
 window.addEventListener('popstate', route)
 route()

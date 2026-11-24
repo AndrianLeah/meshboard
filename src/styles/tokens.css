@@ -1,0 +1,68 @@
+/*
+ * Design tokens, generated from mockup/tokens/variables.css by `npm run tokens`.
+ * Do not edit: change the variables in mockup/meshboard-board-ui.figcraft and export them again.
+ */
+/* Theme · Light */
+:root {
+  --canvas: #F5F5F2;
+  --canvas-dot: #D3D3CC;
+  --surface: #FFFFFF;
+  --surface-hover: #F1F3F6;
+  --surface-pressed: #E6E9EF;
+  --line: #E3E6EB;
+  --line-strong: #CDD2DA;
+  --text-primary: #1C2230;
+  --text-secondary: #525B6B;
+  --text-tertiary: #868E9C;
+  --ink: #141925;
+  --accent: #3D5AF1;
+  --accent-hover: #2C47D8;
+  --accent-tint: #EAEEFE;
+  --guide: #F03E9B;
+  --danger: #E03A3E;
+  --danger-tint: #FDECEB;
+  --online: #2F9E44;
+  --note-yellow: #FFF1A1;
+  --note-orange: #FFD6A5;
+  --note-red: #FFC4C4;
+  --note-pink: #FBC4DC;
+  --note-purple: #DDD3FF;
+  --note-blue: #C4DCFF;
+  --note-green: #C6EFCB;
+  --note-gray: #E7EAEE;
+  --stroke-yellow: #D99A00;
+  --stroke-orange: #E8590C;
+  --stroke-red: #E03131;
+  --stroke-pink: #D6336C;
+  --stroke-purple: #7048E8;
+  --stroke-blue: #1C6FD6;
+  --stroke-green: #2B8A3E;
+  --stroke-gray: #3D4654;
+}
+/* Spacing · Value */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+/* Radius · Value */
+:root {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-capsule: 999px;
+}
+/* Size · Value */
+:root {
+  --size-tool: 40px;
+  --size-icon: 20px;
+  --size-control: 32px;
+  --size-bar: 48px;
+  --size-handle: 10px;
+  --size-avatar: 28px;
+}
