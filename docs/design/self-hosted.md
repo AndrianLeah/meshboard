@@ -196,15 +196,16 @@ Meshboard never stores passwords. Its `users` table is a cache keyed by the sign
 | `proxy`   | An SSO gateway already in front of internal tools                    | None                         |
 | `webhook` | An in-house sign-in service                                          | One endpoint (see below)     |
 
-- **`none`:** an anonymous id and the typed name are kept in a signed cookie. Anyone who can reach
-  the server can open a board they have the link to.
+- **`none`:** an anonymous id and the typed name, with a session like any other. Anyone who can
+  reach the server can sign in, and sees every board shared with everyone.
 - **`oidc`:** authorisation code flow with PKCE, using
   [openid-client](https://github.com/panva/openid-client) (MIT), on `/auth/login`,
   `/auth/callback` and `/auth/logout`. `sub` becomes the id; `name`, `email` and `picture` fill in
   the rest, and `OIDC_GROUPS_CLAIM` names a claim with groups. A sign-in service that only speaks
   SAML can sit behind a broker such as Keycloak, or behind the gateway.
 - **`proxy`:** a gateway such as oauth2-proxy, Pomerium, Cloudflare Access or nginx `auth_request`
-  signs people in and passes headers (`X-Forwarded-User`, `X-Forwarded-Email`, configurable).
+  signs people in and passes headers (`X-Forwarded-User`; email, name and groups only when
+  configured, since the gateway must set or strip each one).
   Meshboard trusts them only from `TRUSTED_PROXIES`, and the server must not be reachable around
   the gateway.
 - **`webhook`:** Meshboard asks your service who the request belongs to. It forwards only the
@@ -407,7 +408,7 @@ The main settings; the full list is in [the self-hosting guide](../self-hosting.
 | `AUTH`                                              | `none`                                   | `none`, `oidc`, `proxy` or `webhook`                                  |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` |                                        | For `oidc`                                                            |
 | `OIDC_SCOPES`, `OIDC_GROUPS_CLAIM`                  | `openid profile email`, none             |                                                                       |
-| `PROXY_USER_HEADER`, `PROXY_EMAIL_HEADER`, `PROXY_NAME_HEADER` | `X-Forwarded-User`, `X-Forwarded-Email`, none | For `proxy`                                               |
+| `PROXY_USER_HEADER`, `PROXY_EMAIL_HEADER`, `PROXY_NAME_HEADER` | `X-Forwarded-User`, none, none | For `proxy`                                               |
 | `TRUSTED_PROXIES`                                   | required with `proxy`                    | Addresses (CIDR) allowed to set those headers                         |
 | `AUTH_WEBHOOK_URL`, `AUTH_WEBHOOK_SECRET`           |                                          | For `webhook`                                                         |
 | `ADMIN_EMAILS`, `ADMIN_GROUP`                       | none                                     | Who can see every board                                               |

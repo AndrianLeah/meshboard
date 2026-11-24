@@ -325,3 +325,71 @@ test('a board is kept across restarts', async () => {
   assert.equal(doc.getMap('items').size, 1)
   again.destroy()
 })
+
+test('presence says who you are, not what your app claims', async () => {
+  const board = await create(anna, { title: 'Who is here' })
+  const annaId = (await me(anna)).user.id
+  const a = provider(server, anna, board.id)
+  const m = provider(server, marco, board.id)
+  await Promise.all([a.synced(), m.synced()])
+  a.provider.awareness!.setLocalStateField('peer', {
+    uid: 'the-boss',
+    name: 'The Boss',
+    x: 5,
+    y: 'NaN',
+    extra: 'x'.repeat(1000),
+  })
+  const seen = () =>
+    [...m.provider.awareness!.getStates().entries()]
+      .filter(([id]) => id !== m.provider.awareness!.clientID)
+      .map(([, s]) => s.peer as Record<string, unknown> | undefined)
+  await waitFor(() => seen().some((p) => p?.x === 5), 'presence at Marco')
+  assert.deepEqual(
+    seen().find((p) => p?.x === 5),
+    { uid: annaId, name: 'Anna', x: 5, y: null },
+  )
+  a.destroy()
+  m.destroy()
+})
+
+test('signing out, or a session that ends, closes its live connections', async () => {
+  const giulia = await guest(server, 'Giulia')
+  const board = await create(giulia, { title: 'Closing time' })
+  const g = provider(server, giulia, board.id)
+  await g.synced()
+  await waitFor(() => server.app.sync.online(board.id) === 1, 'connected')
+  await giulia.post('auth/logout', {})
+  await waitFor(() => server.app.sync.online(board.id) === 0, 'closed on sign-out')
+  g.destroy()
+
+  const sara = await guest(server, 'Sara')
+  const other = await create(sara, { title: 'Expiring' })
+  const s = provider(server, sara, other.id)
+  await s.synced()
+  await waitFor(() => server.app.sync.online(other.id) === 1, 'connected')
+  await server.database.db.deleteFrom('sessions').execute()
+  await server.app.sync.sweep()
+  await waitFor(() => server.app.sync.online(other.id) === 0, 'closed when the session is gone')
+  s.destroy()
+  anna = await guest(server, 'Anna')
+  marco = await guest(server, 'Marco')
+})
+
+test("a board can't grow past its limit between saves", async () => {
+  const small = await startServer({ MAX_BOARD_BYTES: '100000', MAX_MESSAGE_BYTES: '64000' })
+  try {
+    const owner = await guest(small, 'Owner')
+    const board = (await owner.post('api/v1/boards', { title: 'Tiny' })).body as BoardSummary
+    const store = createStore({ id: 'owner', name: 'Owner' })
+    const p = provider(small, owner, board.id, store.doc)
+    await p.synced()
+    for (let i = 0; i < 40; i++) store.create({ type: 'note', x: i * 10, y: 0, text: 'x'.repeat(4900) })
+    await new Promise((r) => setTimeout(r, 600))
+    p.destroy()
+    await new Promise((r) => setTimeout(r, 300))
+    const state = await small.app.sync.state(board.id)
+    assert.ok((state?.byteLength ?? 0) <= 100_000, `kept ${state?.byteLength} bytes`)
+  } finally {
+    await small.stop()
+  }
+})

@@ -6,7 +6,7 @@ import { ConfigError, isTrusted, parseConfig } from '../src/config.ts'
 import { canEdit, canManage, canView, isAdmin, roleFor } from '../src/access.ts'
 import type { Viewer } from '../src/access.ts'
 import { parseCookies, seal, serializeCookie, signatureHeaders, text, unseal, verifySignature } from '../src/util.ts'
-import { checkSameOrigin, clientIp, createLimiter, HttpError, Router, safeReturnTo } from '../src/http.ts'
+import { checkSameOrigin, clientIp, createLimiter, HttpError, rateKey, Router, safeReturnTo } from '../src/http.ts'
 import { cleanIdentity } from '../src/users.ts'
 import { describe as describeState, renderPreview, storeFrom } from '../src/preview.ts'
 import { createWebhooks } from '../src/webhooks.ts'
@@ -70,6 +70,10 @@ test('settings: defaults, and every problem named at once', () => {
     problems({ ...BASE, AUTH: 'proxy', TRUSTED_PROXIES: 'nope', PROXY_USER_HEADER: 'X User' }).join(),
     /invalid address/,
   )
+  assert.match(problems({ ...BASE, ALLOWED_GROUP: 'staff' })[0], /ALLOWED_GROUP needs/)
+  assert.match(problems({ ...BASE, OIDC_ALLOWED_DOMAINS: 'acme.example' })[0], /needs AUTH=oidc/)
+  const proxy = parseConfig({ ...BASE, AUTH: 'proxy', TRUSTED_PROXIES: '10.0.0.1' }).auth
+  assert.equal(proxy.kind === 'proxy' && proxy.emailHeader, null, 'the email header is opt-in')
   const access = parseConfig({ ...BASE, DEFAULT_ACCESS: 'members', ADMIN_EMAILS: ' A@x.example , b@y.example' })
   assert.equal(access.defaultAccess, 'none')
   assert.deepEqual([...access.adminEmails], ['a@x.example', 'b@y.example'])
@@ -196,6 +200,9 @@ test('after signing in, only a path on this site', () => {
     '//evil.example/',
     'https://evil.example/',
     '/\\evil.example',
+    '/..//evil.example/phish',
+    '/%2e%2e//evil.example',
+    '/./..//evil.example',
     'b/abc',
     '/ x',
     42,
@@ -204,6 +211,11 @@ test('after signing in, only a path on this site', () => {
   ])
     assert.equal(safeReturnTo(bad, '/'), '/', String(bad))
   assert.equal(safeReturnTo('/other/app', '/meshboard/'), '/meshboard/')
+  assert.equal(safeReturnTo('/meshboard/../other', '/meshboard/'), '/meshboard/')
+  assert.equal(rateKey('2001:db8:1:2:3:4:5:6'), '2001:db8:1:2::/64')
+  assert.equal(rateKey('2001:db8::1'), '2001:db8:0:0::/64')
+  assert.equal(rateKey('::ffff:10.0.0.1'), '::ffff:10.0.0.1')
+  assert.equal(rateKey('10.0.0.1'), '10.0.0.1')
 })
 
 const req = (headers: Record<string, string>, remote = '127.0.0.1') =>

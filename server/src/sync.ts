@@ -7,7 +7,7 @@ import type { Duplex } from 'node:stream'
 import { Hocuspocus } from '@hocuspocus/server'
 import type { WebSocketLike } from '@hocuspocus/server'
 import { WebSocketServer } from 'ws'
-import type { RawData } from 'ws'
+import type { RawData, WebSocket } from 'ws'
 import * as Y from 'yjs'
 import type { Config } from './config.ts'
 import type { Db } from './db.ts'
@@ -41,6 +41,18 @@ export interface SyncDeps {
 /** A refusal Hocuspocus passes to the client as is (no message: an expected refusal isn't logged). */
 const denied = (reason: string) => ({ reason })
 
+/** What one connection may send in a window: a client typing and dragging stays far below. */
+const WINDOW_MS = 10_000
+const MAX_MESSAGES_PER_WINDOW = 2000
+const MAX_BOARDS_PER_SOCKET = 20
+/** Sign-in from headers (gateway, webhook) is checked again this often: the app reconnects. */
+const MAX_SOCKET_AGE_MS = 8 * 60 * 60_000
+const SWEEP_MS = 60_000
+
+/** A cursor coordinate, or nothing. */
+const coordinate = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 1e7 ? Math.round(v) : null
+
 const toBytes = (data: RawData): Uint8Array => {
   if (Array.isArray(data)) return new Uint8Array(Buffer.concat(data))
   if (data instanceof ArrayBuffer) return new Uint8Array(data)
@@ -49,9 +61,22 @@ const toBytes = (data: RawData): Uint8Array => {
 
 export function createSync(deps: SyncDeps) {
   const { db, config, log } = deps
+  /** what each connection has sent lately, and the boards it has open (by Hocuspocus socket id) */
+  const sockets = new Map<string, { bytes: number; messages: number; reset: number; boards: Set<string> }>()
+  /** each open board's size: as last saved, plus everything received since */
+  const sizes = new Map<string, number>()
+  /** every live WebSocket and who opened it, to close them when a session ends */
+  const live = new Set<{ ws: WebSocket; viewer: Viewer; opened: number }>()
+
+  const socketStats = (id: string) => {
+    let s = sockets.get(id)
+    if (!s) sockets.set(id, (s = { bytes: 0, messages: 0, reset: Date.now() + WINDOW_MS, boards: new Set() }))
+    return s
+  }
 
   async function store(boardId: string, document: Y.Doc, context: SyncContext | undefined) {
     const state = Y.encodeStateAsUpdate(document)
+    sizes.set(boardId, state.byteLength)
     if (state.byteLength > config.maxBoardBytes) {
       log('warn', 'Board over the size limit: not saved', { board: boardId, bytes: state.byteLength })
       for (const connection of hocuspocus.documents.get(boardId)?.getConnections() ?? [])
@@ -93,12 +118,15 @@ export function createSync(deps: SyncDeps) {
     timeout: 30_000,
     authenticationTimeout: 10_000,
     unloadImmediately: false,
-    async onAuthenticate({ documentName, context, connectionConfig }) {
+    async onAuthenticate({ documentName, context, connectionConfig, socketId }) {
       const viewer = context.viewer
       if (!viewer) throw denied('unauthorized')
       if (!BOARD_ID.test(documentName)) throw denied('not-found')
       const role = await deps.authorize(viewer, documentName)
       if (!role) throw denied('forbidden')
+      const stats = socketStats(socketId)
+      if (!stats.boards.has(documentName) && stats.boards.size >= MAX_BOARDS_PER_SOCKET) throw denied('too-many-boards')
+      stats.boards.add(documentName)
       // Hocuspocus drops document updates from read-only connections
       connectionConfig.readOnly = !canEdit(role)
       deps.onOpened?.(viewer, documentName)
@@ -111,7 +139,52 @@ export function createSync(deps: SyncDeps) {
         .where('board_id', '=', documentName)
         .executeTakeFirst()
       if (row) Y.applyUpdate(document, row.state)
+      sizes.set(documentName, row?.state.byteLength ?? 0)
       return document
+    },
+    async onDisconnect({ socketId, documentName }) {
+      const stats = sockets.get(socketId)
+      stats?.boards.delete(documentName)
+      if (stats && !stats.boards.size) sockets.delete(socketId)
+    },
+    afterUnloadDocument: async ({ documentName }) => void sizes.delete(documentName),
+    /**
+     * Every message counts against its connection's rate, and against the board's size: a board
+     * can't grow past MAX_BOARD_BYTES in memory between two saves.
+     */
+    async beforeHandleMessage({ socketId, documentName, update, connection }) {
+      const stats = socketStats(socketId)
+      const now = Date.now()
+      if (now > stats.reset) {
+        stats.bytes = 0
+        stats.messages = 0
+        stats.reset = now + WINDOW_MS
+      }
+      stats.bytes += update.byteLength
+      stats.messages++
+      if (stats.bytes > config.maxMessageBytes * 5 || stats.messages > MAX_MESSAGES_PER_WINDOW) {
+        log('warn', 'A connection sent too much: closed', { board: documentName })
+        connection.webSocket.close(4429, 'too-fast')
+        throw denied('too-fast')
+      }
+      const size = (sizes.get(documentName) ?? 0) + update.byteLength
+      sizes.set(documentName, size)
+      if (size > config.maxBoardBytes) {
+        log('warn', 'Board over the size limit: change refused', { board: documentName })
+        connection.webSocket.close(4413, 'board-too-large')
+        throw denied('board-too-large')
+      }
+    },
+    /** Presence says who you are as the server knows you, never what the client claims. */
+    async beforeHandleAwareness({ states, context }) {
+      const viewer = context?.viewer
+      if (!viewer) return
+      for (const [clientId, state] of states) {
+        const peer = (state?.peer ?? {}) as Record<string, unknown>
+        states.set(clientId, {
+          peer: { uid: viewer.id, name: viewer.name, x: coordinate(peer.x), y: coordinate(peer.y) },
+        })
+      }
     },
     async onStoreDocument({ document, documentName, lastContext }) {
       try {
@@ -122,6 +195,37 @@ export function createSync(deps: SyncDeps) {
       }
     },
   })
+
+  /**
+   * Sessions end while their sockets are open: expired, signed out elsewhere, deleted. Sockets
+   * signed in from headers are closed after a while so the app reconnects and is checked again.
+   */
+  async function sweep(now = Date.now()) {
+    const keys = new Set<string>()
+    for (const entry of live) {
+      const session = entry.viewer.session
+      if (session && session.expiresAt <= now) entry.ws.close(4401, 'session-expired')
+      else if (session) keys.add(session.key)
+      else if (now - entry.opened > MAX_SOCKET_AGE_MS) entry.ws.close(4401, 'check-again')
+    }
+    const list = [...keys]
+    const alive = new Set<string>()
+    for (let i = 0; i < list.length; i += 500) {
+      const rows = await db
+        .selectFrom('sessions')
+        .select('id_hash')
+        .where('id_hash', 'in', list.slice(i, i + 500))
+        .execute()
+      for (const r of rows) alive.add(r.id_hash)
+    }
+    for (const entry of live)
+      if (entry.viewer.session && !alive.has(entry.viewer.session.key)) entry.ws.close(4401, 'signed-out')
+  }
+  const sweeper = setInterval(
+    () => void sweep().catch((err) => log('warn', 'Checking live sessions failed', { error: String(err) })),
+    SWEEP_MS,
+  )
+  sweeper.unref()
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.maxMessageBytes, perMessageDeflate: false })
 
@@ -139,11 +243,23 @@ export function createSync(deps: SyncDeps) {
         }
         const request = new Request(new URL(req.url || '/', config.url), { headers })
         const client = hocuspocus.handleConnection(ws as unknown as WebSocketLike, request, { viewer })
+        const entry = { ws, viewer, opened: Date.now() }
+        live.add(entry)
         ws.on('message', (data) => client.handleMessage(toBytes(data)))
-        ws.on('close', (code, reason) => client.handleClose({ code, reason: reason.toString() } as CloseEvent))
+        ws.on('close', (code, reason) => {
+          live.delete(entry)
+          client.handleClose({ code, reason: reason.toString() } as CloseEvent)
+        })
         ws.on('pong', () => client.touch())
         ws.on('error', () => ws.terminate())
       })
+    },
+
+    sweep,
+
+    /** Closes the WebSockets of a session that ended (signed out). */
+    closeSession(key: string) {
+      for (const entry of live) if (entry.viewer.session?.key === key) entry.ws.close(4401, 'signed-out')
     },
 
     /** How many people have a board open right now. */
@@ -178,6 +294,7 @@ export function createSync(deps: SyncDeps) {
 
     /** Saves every open board and closes all connections (shutdown). */
     async close() {
+      clearInterval(sweeper)
       hocuspocus.flushPendingStores()
       hocuspocus.closeConnections()
       for (const ws of wss.clients) ws.terminate()

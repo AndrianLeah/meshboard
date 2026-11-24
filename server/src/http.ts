@@ -186,15 +186,30 @@ export function securityHeaders(config: Pick<Config, 'url' | 'secure'>): Record<
 
 /** A same-site path to come back to after signing in; anything else becomes the base path. */
 export function safeReturnTo(value: unknown, basePath: string): string {
-  if (typeof value !== 'string' || value.length > 500) return basePath
-  if (!value.startsWith(basePath) || value.startsWith('//') || /[\\\s]/.test(value)) return basePath
+  if (typeof value !== 'string' || value.length > 500 || !value.startsWith('/') || /[\\\s]/.test(value)) return basePath
   try {
+    // checked after the browser's own normalisation: /..//evil.example would become //evil.example
     const u = new URL(value, 'http://x.invalid')
-    if (u.host !== 'x.invalid') return basePath
+    if (u.origin !== 'http://x.invalid' || u.pathname.startsWith('//') || !u.pathname.startsWith(basePath))
+      return basePath
     return u.pathname + u.search
   } catch {
     return basePath
   }
+}
+
+/** The key a client is rate limited by: its address, or its /64 for IPv6 (one host gets a whole /64). */
+export function rateKey(ip: string): string {
+  if (!ip.includes(':') || ip.startsWith('::ffff:')) return ip
+  const full = ip.includes('::')
+    ? (() => {
+        const [head, tail] = ip.split('::')
+        const a = head ? head.split(':') : []
+        const b = tail ? tail.split(':') : []
+        return [...a, ...Array(8 - a.length - b.length).fill('0'), ...b]
+      })()
+    : ip.split(':')
+  return `${full.slice(0, 4).join(':')}::/64`
 }
 
 /** A tiny fixed-window counter per key; true when the request may go ahead. */

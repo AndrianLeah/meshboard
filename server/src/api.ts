@@ -31,6 +31,11 @@ export function createApi({ boards, db, config }: { boards: Boards; db: Db; conf
     return viewer
   }
 
+  /** Who sees a board and deleting it for good stay with people in the app, never a token. */
+  const peopleOnly = (): never => {
+    throw new HttpError(403, 'not-with-a-token', 'Sharing and deleting for good are done in the app, not with a token')
+  }
+
   const body = async (ctx: Ctx, limit?: number) => {
     const data = await readJson(ctx.req, limit)
     if (!isRecord(data)) throw new HttpError(400, 'bad-request', 'Send a JSON object')
@@ -47,13 +52,16 @@ export function createApi({ boards, db, config }: { boards: Boards; db: Db; conf
 
   router.get('/api/v1/people', async (ctx) => {
     await who(ctx)
-    const rows = await searchPeople(
-      db,
-      ctx.url.searchParams.get('q') ?? '',
-      Number(ctx.url.searchParams.get('limit')) || 20,
-    )
+    const q = (ctx.url.searchParams.get('q') ?? '').trim().toLowerCase()
+    const rows = await searchPeople(db, q, Number(ctx.url.searchParams.get('limit')) || 20)
     sendJson(ctx.res, 200, {
-      people: rows.map((r) => ({ id: r.id, name: r.name, email: r.email, avatarUrl: r.avatar_url })),
+      // an address is shown only to someone who already typed it: the list can't be harvested
+      people: rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        email: r.email === q ? r.email : null,
+        avatarUrl: r.avatar_url,
+      })),
     })
   })
 
@@ -92,13 +100,16 @@ export function createApi({ boards, db, config }: { boards: Boards; db: Db; conf
   router.patch('/api/v1/boards/:id', async (ctx) => {
     const viewer = await who(ctx, { write: true })
     const data = await body(ctx)
+    if (viewer.scopes && (data.access !== undefined || data.group !== undefined)) peopleOnly()
     sendJson(ctx.res, 200, await boards.update(viewer, ctx.params.id, data))
   })
 
   router.delete('/api/v1/boards/:id', async (ctx) => {
     const viewer = await who(ctx, { write: true })
-    if (ctx.url.searchParams.get('permanent') === 'true') await boards.destroy(viewer, ctx.params.id)
-    else await boards.trash(viewer, ctx.params.id)
+    if (ctx.url.searchParams.get('permanent') === 'true') {
+      if (viewer.scopes) peopleOnly()
+      await boards.destroy(viewer, ctx.params.id)
+    } else await boards.trash(viewer, ctx.params.id)
     sendJson(ctx.res, 200, { ok: true })
   })
 
@@ -123,6 +134,7 @@ export function createApi({ boards, db, config }: { boards: Boards; db: Db; conf
 
   router.put('/api/v1/boards/:id/members/:userId', async (ctx) => {
     const viewer = await who(ctx, { write: true })
+    if (viewer.scopes) peopleOnly()
     const data = await body(ctx)
     await boards.setMember(viewer, ctx.params.id, ctx.params.userId, data.role)
     sendJson(ctx.res, 200, await boards.members(viewer, ctx.params.id))
@@ -130,6 +142,7 @@ export function createApi({ boards, db, config }: { boards: Boards; db: Db; conf
 
   router.delete('/api/v1/boards/:id/members/:userId', async (ctx) => {
     const viewer = await who(ctx, { write: true })
+    if (viewer.scopes) peopleOnly()
     await boards.removeMember(viewer, ctx.params.id, ctx.params.userId)
     sendJson(ctx.res, 200, { ok: true })
   })

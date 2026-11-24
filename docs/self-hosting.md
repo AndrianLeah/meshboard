@@ -45,6 +45,7 @@ naming it (`docker run … meshboard node server/src/cli.ts check-config` checks
 | `SESSION_DAYS`                                      | `30`                                          | How long a sign-in lasts                                                                                         |
 | `AUTH`                                              | `none`                                        | `none`, `oidc`, `proxy` or `webhook` (below)                                                                     |
 | `ADMIN_EMAILS`, `ADMIN_GROUP`                       | none                                          | Admins see and manage every board                                                                                |
+| `ALLOWED_GROUP`, `OIDC_ALLOWED_DOMAINS`             | none                                          | Only this group, or verified emails in these domains, may sign in                                               |
 | `DEFAULT_ACCESS`                                    | `org_edit`                                    | New boards: `members` (only people added), `org_view` or `org_edit`                                              |
 | `TRUSTED_PROXIES`                                   | none                                          | Addresses (CIDR) of your reverse proxy or gateway: their `X-Forwarded-For` is used for rate limits               |
 | `WEBHOOK_URL`, `WEBHOOK_SECRET`                     | none                                          | Where board events go, and the key that signs them                                                               |
@@ -53,22 +54,29 @@ naming it (`docker run … meshboard node server/src/cli.ts check-config` checks
 
 ## Signing in
 
-**`AUTH=none`.** People type a name. Anyone who can reach the server can sign in, so use it for a
-trial or a small team on a private network.
+**`AUTH=none`.** People type a name. Anyone who can reach the server can sign in and sees every
+board shared with everyone, so use it for a trial, or for a small team on a private network.
+
+**Who may sign in at all.** With a sign-in service, `ALLOWED_GROUP` admits only the members of one
+group, and `OIDC_ALLOWED_DOMAINS` (comma-separated) only verified emails in those domains: set one
+of them when your provider lets outsiders sign in (a public Google app, self sign-up).
 
 **`AUTH=oidc`.** Okta, Entra ID, Google Workspace, Keycloak, Auth0, Authentik, Zitadel… Register a
 web application with the redirect URI `https://<your address>/auth/callback`, then set
 `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`. `OIDC_SCOPES` defaults to
 `openid profile email`; `OIDC_GROUPS_CLAIM` names the claim that lists someone's groups (for
-sharing with a group and `ADMIN_GROUP`). An email the provider marks as not verified is ignored. A
-provider that only speaks SAML can sit behind a broker such as Keycloak.
+sharing with a group and `ADMIN_GROUP`). An email counts only when the provider marks it verified
+(`email_verified: true`); some providers leave that out, so with them use `ADMIN_GROUP` rather than
+`ADMIN_EMAILS`. A provider that only speaks SAML can sit behind a broker such as Keycloak.
 
 **`AUTH=proxy`.** Your SSO gateway (oauth2-proxy, Pomerium, Cloudflare Access, nginx
 `auth_request`…) signs people in and passes who they are in headers. Set `TRUSTED_PROXIES` to the
-gateway's addresses: headers from anywhere else are ignored. The headers are `X-Forwarded-User`
-(required, a stable id) and `X-Forwarded-Email`; `PROXY_NAME_HEADER` and `PROXY_GROUPS_HEADER`
-(comma-separated) are optional, and every name can be changed with the `PROXY_*_HEADER` settings.
-Meshboard must not be reachable around the gateway.
+gateway's addresses: headers from anywhere else are ignored. `X-Forwarded-User` (a stable id) is
+required, and its name can be changed with `PROXY_USER_HEADER`; `PROXY_EMAIL_HEADER`,
+`PROXY_NAME_HEADER` and `PROXY_GROUPS_HEADER` (comma-separated) are read only when you set them.
+**The gateway must set or remove every one of these headers on every request**: one it passes
+through from the browser lets anyone claim to be anyone. Meshboard must not be reachable around
+the gateway.
 
 **`AUTH=webhook`.** Your own sign-in service tells Meshboard who a request belongs to. Set
 `AUTH_WEBHOOK_URL` (https) and `AUTH_WEBHOOK_SECRET` (16 characters or more). Meshboard sends:
@@ -108,7 +116,8 @@ docker exec meshboard node --disable-warning=ExperimentalWarning server/src/cli.
 ```
 
 The token is shown once: send it as `Authorization: Bearer mbt_…`. It acts as its owner, narrowed
-to its scopes (`boards:read`, `boards:write`), and can't open live sync. `token list` and
+to its scopes (`boards:read`, `boards:write`). It can't open live sync, change who has access to a
+board, or delete one for good: those stay with people in the app. `token list` and
 `token revoke <id>` manage them.
 
 ## Webhooks
@@ -127,6 +136,9 @@ signed like the sign-in webhook and retried a few times. Skip event ids you've a
 - **Health:** `/healthz` (the process) and `/readyz` (the database) for Docker and Kubernetes.
 - **Logs** are JSON lines on standard output, without board content, tokens or cookies.
 - **One instance** is enough for most organisations: boards are kept in memory while open.
+- **Limits:** a connection that sends too much too fast, or a board that grows past
+  `MAX_BOARD_BYTES` between two saves, is disconnected. Signing out closes that session's live
+  connections; sign-in through a gateway or webhook is checked again every few hours.
 
 ## Developing it
 

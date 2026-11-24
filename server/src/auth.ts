@@ -52,6 +52,8 @@ interface AuthDeps {
   secret: string
   log: Logger
   fetch?: typeof fetch
+  /** a session ended (signed out): its live connections should close */
+  onSignOut?: (sessionKey: string) => void
 }
 
 const OIDC_COOKIE = 'mb_oidc'
@@ -63,11 +65,25 @@ export function createAuth(deps: AuthDeps): Auth {
   const { config, db, upsert, secret, log } = deps
   const doFetch = deps.fetch ?? fetch
   const base = config.basePath
-  const cookieName = sessionCookie(config.secure)
+  const cookieName = sessionCookie(config.secure, base)
   const rules = { adminEmails: config.adminEmails, adminGroup: config.adminGroup }
   const cookieOptions = { secure: config.secure, path: base }
 
-  const viewerOf = async (identity: Identity): Promise<Viewer> => toViewer(await upsert(identity), rules)
+  /** Who may use this Meshboard at all: ALLOWED_GROUP, and OIDC_ALLOWED_DOMAINS for OpenID Connect. */
+  function admit(identity: { groups: readonly string[]; email: string | null }, checkDomain = false) {
+    if (config.allowedGroup && !identity.groups.includes(config.allowedGroup))
+      throw new HttpError(403, 'not-allowed', "You're not in the group that can use this Meshboard")
+    if (checkDomain && config.allowedDomains.size) {
+      const domain = identity.email?.split('@')[1]
+      if (!domain || !config.allowedDomains.has(domain))
+        throw new HttpError(403, 'not-allowed', "Your account's domain can't use this Meshboard")
+    }
+  }
+
+  const viewerOf = async (identity: Identity, { checkDomain = false } = {}): Promise<Viewer> => {
+    admit(identity, checkDomain)
+    return toViewer(await upsert(identity), rules)
+  }
 
   async function startSession(_ctx: Ctx, userId: string): Promise<string> {
     const token = await createSession(db, userId, config.sessionDays)
@@ -79,7 +95,11 @@ export function createAuth(deps: AuthDeps): Auth {
   async function fromSession(req: IncomingMessage): Promise<Viewer | null> {
     const token = parseCookies(req.headers.cookie).get(cookieName)
     const row = await sessionUser(db, token)
-    return row && toViewer(row, rules)
+    if (!row || !token) return null
+    const viewer = toViewer(row, rules)
+    // the allowed group is checked again on every request, with the groups seen at sign-in
+    if (config.allowedGroup && !viewer.groups.includes(config.allowedGroup)) return null
+    return { ...viewer, session: { key: sha256(token), expiresAt: row.expires_at } }
   }
 
   /** `Authorization: Bearer mbt_…`: an API token acts as its owner, within its scopes. */
@@ -111,7 +131,10 @@ export function createAuth(deps: AuthDeps): Auth {
   async function signOut(ctx: Ctx) {
     checkSameOrigin(ctx.req, config)
     const token = parseCookies(ctx.req.headers.cookie).get(cookieName)
-    if (token) await endSession(db, token)
+    if (token) {
+      await endSession(db, token)
+      deps.onSignOut?.(sha256(token))
+    }
     sendJson(ctx.res, 200, { ok: true }, { 'set-cookie': clearSession() })
   }
 
@@ -168,12 +191,13 @@ export function createAuth(deps: AuthDeps): Auth {
         }))
 
     const claimsToIdentity = (claims: Record<string, unknown>): Identity | null => {
-      // an email the provider says isn't verified can't make anyone an admin or be shown as theirs
-      const email = claims.email_verified === false ? null : claims.email
+      // only an email the provider says is verified is theirs: anything else could be anyone's
+      // (some providers leave email_verified out; use ADMIN_GROUP with those)
+      const email = claims.email_verified === true ? claims.email : null
       const groups = settings.groupsClaim ? claims[settings.groupsClaim] : undefined
       return cleanIdentity({
         id: claims.sub,
-        name: claims.name ?? claims.preferred_username ?? claims.email,
+        name: claims.name ?? claims.preferred_username ?? email,
         email,
         avatarUrl: claims.picture,
         groups: typeof groups === 'string' ? groups.split(/[\s,]+/) : groups,
@@ -248,7 +272,7 @@ export function createAuth(deps: AuthDeps): Auth {
           }
           const identity = claims && claimsToIdentity(claims)
           if (!identity) throw new HttpError(401, 'sign-in-failed', 'The sign-in service sent no user id')
-          const viewer = await viewerOf(identity)
+          const viewer = await viewerOf(identity, { checkDomain: true })
           const cookie = await startSession(ctx, viewer.id)
           redirect(ctx.res, safeReturnTo(pending.returnTo, base), { 'set-cookie': [cookie, clear] })
           return true
@@ -352,13 +376,19 @@ export function createAuth(deps: AuthDeps): Auth {
     async handle(ctx) {
       // a link from your app: /auth/token?token=…&returnTo=…, exchanged once for a Meshboard session
       if (ctx.path === '/auth/token' && ctx.req.method === 'GET') {
+        const returnTo = safeReturnTo(ctx.url.searchParams.get('returnTo'), base)
+        // already signed in: a link never swaps the session for someone else's
+        if (await fromSession(ctx.req)) {
+          redirect(ctx.res, returnTo)
+          return true
+        }
         const token = text(ctx.url.searchParams.get('token'), 4000)
         if (!token) throw new HttpError(400, 'token-required', 'A token is required')
         const identity = await askWebhook({ token })
         if (!identity) throw new HttpError(401, 'sign-in-failed', "Couldn't sign you in with that link")
         const viewer = await viewerOf(identity)
         const cookie = await startSession(ctx, viewer.id)
-        redirect(ctx.res, safeReturnTo(ctx.url.searchParams.get('returnTo'), base), { 'set-cookie': cookie })
+        redirect(ctx.res, returnTo, { 'set-cookie': cookie })
         return true
       }
       if (ctx.path === '/auth/logout' && ctx.req.method === 'POST') {

@@ -12,3 +12,7 @@ branding
 docs
 *.log
 data
+.env
+.env.*
+**/.env
+.data

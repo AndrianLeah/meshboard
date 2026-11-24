@@ -120,6 +120,7 @@ test('OpenID Connect: code flow with PKCE, groups, admins, unverified emails and
       sub: 'okta|anna',
       name: 'Anna Rossi',
       email: 'Anna@acme.example',
+      email_verified: true,
       groups: ['Design', 'it'],
     })
     const done = await anna.get(`auth/callback?code=${second.code}&state=${second.state}`)
@@ -147,7 +148,7 @@ test('OpenID Connect: code flow with PKCE, groups, admins, unverified emails and
     await sara.get(`auth/callback?code=${l.code}&state=${l.state}`)
     const saraMe = (await sara.get('api/v1/me')).body as { user: { email: string | null; name: string } }
     assert.equal(saraMe.user.email, null)
-    assert.equal(saraMe.user.name, 'boss@acme.example')
+    assert.equal(saraMe.user.name, 'sara', 'nor used as a name: it falls back to the id')
 
     const luca = client(server)
     const bad = idp.grant((await luca.get('auth/login')).headers.get('location')!, { sub: 'luca' })
@@ -159,6 +160,33 @@ test('OpenID Connect: code flow with PKCE, groups, admins, unverified emails and
     assert.equal(res.status, 400)
     assert.equal((await anna.post('auth/logout', {})).status, 200)
     assert.equal((await anna.get('api/v1/me')).status, 401)
+  } finally {
+    await server.stop()
+    await idp.close()
+  }
+})
+
+test('OpenID Connect: an allowlist of domains and a required group', async () => {
+  const idp = await fakeIssuer()
+  const server = await startServer({
+    AUTH: 'oidc',
+    OIDC_ISSUER: idp.issuer,
+    OIDC_CLIENT_ID: 'meshboard',
+    OIDC_CLIENT_SECRET: 'client-secret',
+    OIDC_GROUPS_CLAIM: 'groups',
+    OIDC_ALLOWED_DOMAINS: '@Acme.example',
+    ALLOWED_GROUP: 'staff',
+  })
+  const attempt = async (claims: Record<string, unknown>) => {
+    const c = client(server)
+    const g = idp.grant((await c.get('auth/login')).headers.get('location')!, claims)
+    return (await c.get(`auth/callback?code=${g.code}&state=${g.state}`)).status
+  }
+  try {
+    assert.equal(await attempt({ sub: 'a', email: 'a@gmail.example', email_verified: true, groups: ['staff'] }), 403)
+    assert.equal(await attempt({ sub: 'b', email: 'b@acme.example', groups: ['staff'] }), 403, 'not verified')
+    assert.equal(await attempt({ sub: 'c', email: 'c@acme.example', email_verified: true, groups: [] }), 403)
+    assert.equal(await attempt({ sub: 'd', email: 'd@acme.example', email_verified: true, groups: ['staff'] }), 302)
   } finally {
     await server.stop()
     await idp.close()
@@ -186,9 +214,13 @@ test('SSO gateway: headers count only from the gateway', async () => {
   const trusted = await startServer({
     AUTH: 'proxy',
     TRUSTED_PROXIES: '127.0.0.1',
+    PROXY_EMAIL_HEADER: 'X-Forwarded-Email',
     PROXY_GROUPS_HEADER: 'X-Forwarded-Groups',
+    ADMIN_EMAILS: 'boss@acme.example',
   })
   const spoofed = await startServer({ AUTH: 'proxy', TRUSTED_PROXIES: '10.0.0.0/8' })
+  // the gateway sets only the user header: an email from the browser must not count
+  const noEmail = await startServer({ AUTH: 'proxy', TRUSTED_PROXIES: '127.0.0.1', ADMIN_EMAILS: 'boss@acme.example' })
   try {
     const headers = {
       'x-forwarded-user': 'anna',
@@ -206,9 +238,33 @@ test('SSO gateway: headers count only from the gateway', async () => {
     assert.equal(await rawUpgrade(spoofed, { origin: spoofed.origin, ...headers }), 401)
     const cfg = (await client(trusted).get('config.json')).body as { auth: unknown }
     assert.deepEqual(cfg.auth, { kind: 'proxy', loginUrl: null, canSignOut: false })
+
+    const mallory = await client(noEmail).get('api/v1/me', {
+      'x-forwarded-user': 'mallory',
+      'x-forwarded-email': 'boss@acme.example',
+    })
+    const m = mallory.body as { user: { email: string | null }; isAdmin: boolean }
+    assert.equal(m.user.email, null)
+    assert.equal(m.isAdmin, false)
+
+    // email addresses aren't listed to anyone who searches by name
+    await client(trusted).get('api/v1/me', { 'x-forwarded-user': 'boss', 'x-forwarded-email': 'boss@acme.example' })
+    const search = (q: string) =>
+      client(trusted)
+        .get(`api/v1/people?q=${encodeURIComponent(q)}`, headers)
+        .then((r) => r.body as { people: Array<{ email: string | null }> })
+    assert.deepEqual(
+      (await search('bos')).people.map((p) => p.email),
+      [null],
+    )
+    assert.deepEqual(
+      (await search('Boss@acme.example')).people.map((p) => p.email),
+      ['boss@acme.example'],
+    )
   } finally {
     await trusted.stop()
     await spoofed.stop()
+    await noEmail.stop()
   }
 })
 
@@ -262,6 +318,12 @@ test('sign-in webhook: your service says who it is, gets only your cookies, and 
     assert.ok(link.jar.has('mb_session'))
     assert.equal((await link.get('api/v1/me')).status, 200)
     assert.equal((await client(server).get('auth/token?token=nope')).status, 401)
+    // someone already signed in keeps their session: a link can't swap it for another person's
+    const before = link.jar.get('mb_session')
+    const swap = await link.get('auth/token?token=one-time&returnTo=%2F')
+    assert.equal(swap.status, 302)
+    assert.equal(swap.headers.getSetCookie().length, 0)
+    assert.equal(link.jar.get('mb_session'), before)
 
     down = true
     const other = client(server)
@@ -298,6 +360,7 @@ test('API tokens: read-only or read-write, never for live sync', async () => {
       return {
         get: (p: string) => c.get(p, { authorization: `Bearer ${token}` }),
         post: (p: string, body: unknown) => c.post(p, body, { authorization: `Bearer ${token}` }),
+        call: (m: string, p: string, body?: unknown) => c.call(m, p, body, { authorization: `Bearer ${token}` }),
       }
     }
     const board = (await anna.post('api/v1/boards', { title: 'Via the app' })).body as BoardSummary
@@ -309,6 +372,13 @@ test('API tokens: read-only or read-write, never for live sync', async () => {
     const made = await writer.post('api/v1/boards', { title: 'From a script' })
     assert.equal(made.status, 201, 'no Origin needed: tokens carry no cookies')
     assert.equal((made.body as BoardSummary).owner.id, annaId)
+    // sharing and deleting for good stay with people in the app
+    const id = (made.body as BoardSummary).id
+    assert.equal((await writer.call('PATCH', `api/v1/boards/${id}`, { access: 'edit' })).status, 403)
+    assert.equal((await writer.call('PATCH', `api/v1/boards/${id}`, { title: 'Renamed by a script' })).status, 200)
+    assert.equal((await writer.call('PUT', `api/v1/boards/${id}/members/${annaId}`, { role: 'viewer' })).status, 403)
+    assert.equal((await writer.call('DELETE', `api/v1/boards/${id}`)).status, 200)
+    assert.equal((await writer.call('DELETE', `api/v1/boards/${id}?permanent=true`)).status, 403)
     assert.equal((await bearer(tokens.old).get('api/v1/boards')).status, 401)
     assert.equal((await bearer('mbt_short').get('api/v1/boards')).status, 401)
     assert.equal(await rawUpgrade(server, { origin: server.origin, authorization: `Bearer ${tokens.write}` }), 403)

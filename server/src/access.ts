@@ -14,6 +14,8 @@ export interface Viewer {
   isAdmin: boolean
   /** set when the request came with an API token: what it may do */
   scopes?: ReadonlySet<Scope>
+  /** set when signed in with a Meshboard session: its key (hash) and end, to close its sockets */
+  session?: { key: string; expiresAt: number }
 }
 
 export type Scope = 'boards:read' | 'boards:write'

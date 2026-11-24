@@ -16,7 +16,7 @@ import { createStatic } from './static.ts'
 import { createSync } from './sync.ts'
 import { createWebhooks } from './webhooks.ts'
 import { createUserCache, purgeExpiredSessions } from './users.ts'
-import { HttpError, clientIp, createLimiter, redirect, securityHeaders, sendJson } from './http.ts'
+import { HttpError, clientIp, createLimiter, rateKey, redirect, securityHeaders, sendJson } from './http.ts'
 import type { Ctx } from './http.ts'
 import type { Logger } from './util.ts'
 
@@ -36,7 +36,15 @@ const escapeHtml = (s: string) =>
 export function createApp(config: Config, deps: AppDeps) {
   const { db, log } = deps
   const upsert = createUserCache(db)
-  const auth = createAuth({ config, db, upsert, secret: deps.secret, log, fetch: deps.fetch })
+  const auth = createAuth({
+    config,
+    db,
+    upsert,
+    secret: deps.secret,
+    log,
+    fetch: deps.fetch,
+    onSignOut: (key) => sync.closeSession(key),
+  })
   const webhooks = createWebhooks(config.webhook, log, { fetch: deps.fetch })
   const urlOf = (id: string) => new URL(`b/${id}`, config.url).toString()
 
@@ -81,7 +89,7 @@ export function createApp(config: Config, deps: AppDeps) {
       throw new HttpError(404, 'not-found', 'Not found')
     }
     const path = `/${url.pathname.slice(config.basePath.length)}`
-    const ip = clientIp(req, config)
+    const ip = rateKey(clientIp(req, config))
     let viewer: Promise<Viewer | null> | null = null
     const ctx: Ctx = { req, res, url, path, params: {}, ip, viewer: () => (viewer ??= auth.identify(req)) }
 
@@ -145,7 +153,7 @@ export function createApp(config: Config, deps: AppDeps) {
       if (url.pathname !== `${config.basePath}sync`) return refuse(socket, 404)
       // browsers always send Origin on WebSockets: another site can't open one with our cookies
       if (req.headers.origin !== config.url.origin) return refuse(socket, 403)
-      if (!limits.sync(clientIp(req, config))) return refuse(socket, 429)
+      if (!limits.sync(rateKey(clientIp(req, config)))) return refuse(socket, 429)
       const viewer = await auth.identify(req).catch(() => null)
       if (!viewer) return refuse(socket, 401)
       // API tokens are for the JSON API, not for live editing

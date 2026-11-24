@@ -37,6 +37,10 @@ export interface Config {
   trustedProxies: BlockList | null
   adminEmails: ReadonlySet<string>
   adminGroup: string | null
+  /** only members of this group may sign in (from the sign-in service's groups) */
+  allowedGroup: string | null
+  /** OIDC: only verified emails in these domains may sign in */
+  allowedDomains: ReadonlySet<string>
   /** general access of new boards */
   defaultAccess: AccessLevel
   /** shown as "Everyone at …" */
@@ -146,7 +150,8 @@ export function parseConfig(env: Env): Config {
       auth = {
         kind: 'proxy',
         userHeader: header('PROXY_USER_HEADER', 'X-Forwarded-User')!,
-        emailHeader: header('PROXY_EMAIL_HEADER', 'X-Forwarded-Email'),
+        // opt-in: a header the gateway doesn't set could come from the browser untouched
+        emailHeader: header('PROXY_EMAIL_HEADER', null),
         nameHeader: header('PROXY_NAME_HEADER', null),
         groupsHeader: header('PROXY_GROUPS_HEADER', null),
       }
@@ -166,6 +171,9 @@ export function parseConfig(env: Env): Config {
     default:
       problems.push(`AUTH must be none, oidc, proxy or webhook, not "${kind}"`)
   }
+
+  if (get('ALLOWED_GROUP') && auth.kind === 'none') problems.push('ALLOWED_GROUP needs a sign-in service (AUTH)')
+  if (get('OIDC_ALLOWED_DOMAINS') && auth.kind !== 'oidc') problems.push('OIDC_ALLOWED_DOMAINS needs AUTH=oidc')
 
   const access = get('DEFAULT_ACCESS') ?? 'org_edit'
   const defaultAccess = ({ members: 'none', org_view: 'view', org_edit: 'edit' } as const)[access]
@@ -204,6 +212,13 @@ export function parseConfig(env: Env): Config {
         .filter(Boolean),
     ),
     adminGroup: get('ADMIN_GROUP'),
+    allowedGroup: get('ALLOWED_GROUP'),
+    allowedDomains: new Set(
+      (get('OIDC_ALLOWED_DOMAINS') ?? '')
+        .split(',')
+        .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
+        .filter(Boolean),
+    ),
     defaultAccess: defaultAccess ?? 'edit',
     orgName: (get('ORG_NAME') ?? 'your organisation').slice(0, 60),
     webhook,

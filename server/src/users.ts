@@ -111,8 +111,12 @@ export type UpsertUser = ReturnType<typeof createUserCache>
 
 // ---------- sessions ----------
 
-/** The session cookie's name: with HTTPS, the __Host- prefix pins it to this host and path /. */
-export const sessionCookie = (secure: boolean): string => (secure ? '__Host-mb_session' : 'mb_session')
+/**
+ * The session cookie's name. With HTTPS at the root, __Host- pins it to this host and path /; under
+ * a sub-path __Secure- (a __Host- cookie must have Path=/).
+ */
+export const sessionCookie = (secure: boolean, basePath = '/'): string =>
+  !secure ? 'mb_session' : basePath === '/' ? '__Host-mb_session' : '__Secure-mb_session'
 
 /** Starts a session; returns the token for the cookie (only its hash is stored). */
 export async function createSession(db: Db, userId: string, days: number, now = Date.now()): Promise<string> {
@@ -125,7 +129,11 @@ export async function createSession(db: Db, userId: string, days: number, now = 
 }
 
 /** The person a session token belongs to, or null when it's unknown or has expired. */
-export async function sessionUser(db: Db, token: string | undefined, now = Date.now()): Promise<UsersTable | null> {
+export async function sessionUser(
+  db: Db,
+  token: string | undefined,
+  now = Date.now(),
+): Promise<(UsersTable & { expires_at: number }) | null> {
   if (!token || token.length > 100) return null
   const row = await db
     .selectFrom('sessions')
@@ -139,8 +147,7 @@ export async function sessionUser(db: Db, token: string | undefined, now = Date.
     await endSession(db, token)
     return null
   }
-  const { expires_at: _expires, ...user } = row
-  return user
+  return row
 }
 
 export async function endSession(db: Db, token: string): Promise<void> {

@@ -46,12 +46,16 @@ async function run(argv: string[]) {
         },
       })
       if (!values.owner || !values.name) return fail('token create needs --owner and --name')
-      const owner = await db
+      const matches = await db
         .selectFrom('users')
         .select(['id', 'name'])
         .where((eb) => eb.or([eb('id', '=', values.owner!), eb('email', '=', values.owner!.toLowerCase())]))
-        .executeTakeFirst()
-      if (!owner) return fail(`Nobody called ${values.owner} has signed in yet: tokens act as an existing person.`)
+        .limit(2)
+        .execute()
+      if (!matches.length)
+        return fail(`Nobody called ${values.owner} has signed in yet: tokens act as an existing person.`)
+      if (matches.length > 1) return fail(`Several people have ${values.owner}: use the id of the right one.`)
+      const owner = matches[0]
       const scopes = (values.scopes ?? 'boards:read').split(',').map((s) => s.trim())
       const bad = scopes.filter((s) => !(SCOPES as readonly string[]).includes(s))
       if (bad.length) return fail(`Unknown scopes: ${bad.join(', ')} (use ${SCOPES.join(', ')})`)
