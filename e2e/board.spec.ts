@@ -1,0 +1,145 @@
+// The board in a real browser: create, edit, react, connect, frame, keys, menus, files.
+import { fileURLToPath } from 'node:url'
+import { test, expect, createBoard, addNote, drag, centre, rect, waitForSave } from './fixtures.ts'
+
+const EXAMPLE = fileURLToPath(new URL('../examples/retro-sprint.json', import.meta.url))
+
+test('a sticky note survives a reload, and the board is listed on the home screen', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 500, 400, 'Ship on Friday')
+  await expect(note).toHaveCount(1)
+  await expect(note).toContainText('You')
+
+  await page.getByLabel('Board title').fill('Sprint retro')
+  await page.getByLabel('Board title').press('Enter')
+  await expect(page).toHaveTitle('Sprint retro · Meshboard')
+
+  await waitForSave(page)
+  await page.reload()
+  await expect(page.locator('.item--note', { hasText: 'Ship on Friday' })).toHaveCount(1)
+  await page.getByRole('button', { name: 'All boards' }).click()
+  await expect(page.locator('.home__recent-item', { hasText: 'Sprint retro' })).toBeVisible()
+})
+
+test('quick-add places the next note beside the selected one, ready to type', async ({ page }) => {
+  await createBoard(page)
+  const first = await addNote(page, 400, 400, 'First')
+  await first.click()
+  await page.locator('[data-quick-add="e"]').click()
+  await page.keyboard.type('Second')
+  await page.keyboard.press('Escape')
+  const second = page.locator('.item--note', { hasText: 'Second' })
+  await expect(second).toHaveCount(1)
+  const a = await rect(first)
+  const b = await rect(second)
+  expect(Math.round(b.y)).toBe(Math.round(a.y))
+  expect(b.x).toBeGreaterThan(a.x + a.width)
+})
+
+test('reactions: pick from the searchable picker, click the chip to take it back', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 500, 400, 'Demo went well')
+  await note.hover()
+  await note.getByRole('button', { name: 'Add reaction' }).click()
+  const search = page.getByRole('searchbox', { name: 'Search emoji' })
+  await expect(search).toBeFocused()
+  await search.fill('party')
+  await expect(page.getByRole('option').first()).toBeVisible()
+  await page.keyboard.press('Enter')
+
+  const chip = note.locator('[data-reaction]')
+  await expect(chip).toHaveCount(1)
+  await expect(chip).toHaveAttribute('aria-pressed', 'true')
+  await expect(chip).toContainText('1')
+  await chip.click()
+  await expect(note.locator('[data-reaction]')).toHaveCount(0)
+})
+
+test('connectors attach from the connection dots and go with a deleted item', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 700, 300, 'Target')
+  await page.keyboard.press('r')
+  await drag(page, { x: 300, y: 450 }, { x: 460, y: 560 })
+  await page.keyboard.press('Escape')
+  const rect = page.locator('.item--rect')
+  await expect(rect).toHaveCount(1)
+
+  await page.mouse.move(380, 505)
+  const dot = page.locator('[data-dot="e"]')
+  await expect(dot).toBeVisible()
+  await drag(page, await centre(dot), await centre(note))
+  await expect(page.locator('.board__connectors .connector')).toHaveCount(1)
+
+  await note.click()
+  await page.keyboard.press('Delete')
+  await expect(page.locator('.board__connectors .connector')).toHaveCount(0)
+})
+
+test('a frame carries what is inside it', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 500, 420, 'Inside')
+  await page.keyboard.press('f')
+  await drag(page, { x: 300, y: 250 }, { x: 760, y: 620 })
+  await page.keyboard.press('Escape')
+  const before = await rect(note)
+  const title = page.locator('.frame__title')
+  const t = await centre(title)
+  await drag(page, t, { x: t.x + 120, y: t.y + 40 })
+  const after = await rect(note)
+  expect(Math.round(after.x - before.x)).toBe(120)
+  expect(Math.round(after.y - before.y)).toBe(40)
+})
+
+test('keyboard: duplicate, undo, redo, delete', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 500, 400, 'Twin')
+  await note.click()
+  await page.keyboard.press('ControlOrMeta+d')
+  await expect(page.locator('.item--note')).toHaveCount(2)
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(page.locator('.item--note')).toHaveCount(1)
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect(page.locator('.item--note')).toHaveCount(2)
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.press('Delete')
+  await expect(page.locator('.item--note')).toHaveCount(0)
+  await expect(page.getByText('Double-click to add a sticky note')).toBeVisible()
+})
+
+test('right-click menu: lock keeps a note in place until unlocked', async ({ page }) => {
+  await createBoard(page)
+  const note = await addNote(page, 500, 400, 'Pinned')
+  await note.click({ button: 'right' })
+  const menu = page.getByRole('menu', { name: 'Actions' })
+  await expect(menu.getByRole('menuitem', { name: /Copy/ })).toBeVisible()
+  await menu.getByRole('menuitem', { name: /Lock/ }).click()
+  await expect(page.locator('.overlay__lock')).toBeVisible()
+
+  const before = await rect(note)
+  const c = await centre(note)
+  await drag(page, c, { x: c.x + 150, y: c.y })
+  expect((await rect(note)).x).toBe(before.x)
+  await page.keyboard.press('Delete')
+  await expect(note).toHaveCount(1)
+})
+
+test('the shortcuts panel is built from the keymap', async ({ page }) => {
+  await createBoard(page)
+  await page.getByRole('button', { name: 'Keyboard shortcuts' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('dt', { hasText: 'Connection line' }).locator('+ dd')).toHaveText('L')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+})
+
+test('a board created from the example file has every item', async ({ page }) => {
+  await page.goto('/')
+  await page.getByPlaceholder('How others will see you').fill('Anna')
+  await page.locator('.home input[type=file]').setInputFiles(EXAMPLE)
+  await expect(page.locator('.item--note')).toHaveCount(9)
+  await expect(page.locator('.item--frame')).toHaveCount(3)
+  await expect(page.locator('.board__connectors .connector')).toHaveCount(3)
+  await expect(page.locator('[data-reaction]').first()).toBeVisible()
+  await expect(page.getByLabel('Board title')).toHaveValue('Sprint 42 retro')
+})
