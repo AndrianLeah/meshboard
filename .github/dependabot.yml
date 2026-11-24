@@ -1,15 +1,24 @@
+# Security fixes only: no pull requests for routine version bumps.
+# `open-pull-requests-limit: 0` turns version updates off; security updates aren't affected by it.
+# They are raised when an advisory affects a dependency (GitHub doesn't schedule them), and the
+# groups below put every fix of an ecosystem into a single pull request.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    open-pull-requests-limit: 0
     groups:
-      dev-tools:
-        dependency-type: development
-      runtime:
-        dependency-type: production
+      npm-security:
+        applies-to: security-updates
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 0
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ['*']
