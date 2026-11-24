@@ -1,5 +1,5 @@
 /*
- * Where the board's chrome sits (top bars, tools, history, zoom, context bar) and the inner
+ * Where the board's chrome sits (top bars, tools, history, zoom, context bar, join notice) and the inner
  * layout of the shortcuts panel and the emoji picker. Every surface and control inside them
  * comes from the design system.
  */
@@ -80,6 +80,29 @@
 }
 .context-bar__color {
   margin: 0 var(--space-2);
+}
+
+/* the note on a board that's still empty after opening its link; clicks go through to the canvas */
+.join-notice {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-chrome);
+  width: min(380px, calc(100% - 2 * var(--space-4)));
+  padding: var(--space-5);
+  text-align: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.join-notice[hidden] {
+  display: none;
+}
+/* the canvas's own hint sits in the same spot */
+.board-page:has(> .join-notice:not([hidden])) .board__hint {
+  visibility: hidden;
+}
+.join-notice__body {
+  margin: var(--space-2) 0 0;
 }
 
 /* phones: tools in a bar at the bottom, history above it, no zoom bar (pinch instead) */

@@ -32,7 +32,7 @@ participants' browsers.
 
 ## Features
 
-| | |
+| Feature | What it does |
 | --- | --- |
 | 🗒️ **Sticky notes that fit their text** | Text is centred and sized to fit the note. Double-click anywhere for a new note, or use the **+** around a selected one to add the next. |
 | 🔷 **Shapes, text, frames and a pen** | Rectangles, ovals, triangles, diamonds, text boxes and freehand strokes in eight colours. Frames are titled sheets that carry their content when they move. |
@@ -47,8 +47,8 @@ participants' browsers.
 
 <table>
   <tr>
-    <td width="62%"><img src="docs/detail-reactions.png" alt="Close-up of sticky notes with emoji reactions, connectors and a teammate's cursor" /></td>
-    <td width="38%"><img src="public/screenshots/board-narrow.png" alt="The same board on a phone" /></td>
+    <td width="62%" valign="top"><img src="docs/detail-reactions.png" alt="Close-up of sticky notes with emoji reactions, connectors and a teammate's cursor" /></td>
+    <td width="38%" valign="top"><img src="public/screenshots/board-narrow.png" alt="The same board on a phone" /></td>
   </tr>
 </table>
 
@@ -99,15 +99,35 @@ Meshboard is a static site: GitHub Pages is all it needs.
 3. Push to `main` (or run the *Deploy to GitHub Pages* workflow). Your copy is live at
    `https://<you>.github.io/meshboard/`.
 
+### Optional: a relay for strict networks
+
+Meshboard doesn't need one, and none is set by default, the public instance included. Browsers connect
+directly through most home and office networks, but not all: mobile carriers put phones behind shared
+NATs that two browsers often can't connect through, and some company firewalls do the same. Teammates
+then find each other but the board never loads, and Meshboard says so. A **TURN** relay fixes it: it
+passes the connection along when a direct one fails, and it can't read it (WebRTC encrypts the traffic
+end to end).
+
+Set the relay in your repository under **Settings → Secrets and variables → Actions → Variables**, then
+deploy again. They're variables, not secrets, on purpose: the browser needs them, so they end up in the
+public site anyway.
+
+| Variable | Value |
+| --- | --- |
+| `TURN_CREDENTIALS_URL` | A URL answering with ICE servers, such as [Metered](https://www.metered.ca/tools/openrelay/)'s `https://<app>.metered.live/api/v1/turn/credentials?apiKey=<key>` (free tier: 20 GB a month, ports 80 and 443) |
+| `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | Or fixed credentials, from a provider such as [ExpressTURN](https://www.expressturn.com) (free tier: 1,000 GB a month) or your own [coturn](https://github.com/coturn/coturn). Separate several URLs with commas |
+
+Only connections that can't go direct use the relay, so a small free tier goes a long way.
+
 ## Good to know
 
 - **A name is not a login.** Anyone with the link can join and pick any name. Share links only
   with the people who should be on the board.
 - **A board lives with the people who use it.** When nobody has it open, it exists only in the
   browsers that had it. Use **Export** to keep a long-term copy.
-- **Some corporate networks block peer-to-peer.** If teammates can't connect, add a TURN server
-  (Cloudflare and Metered have free tiers) by passing `turnConfig` to `connect()` in
-  [`src/sync/index.ts`](src/sync/index.ts).
+- **Some networks block direct connections.** On mobile data and some office networks teammates
+  may not connect; whoever hosts Meshboard can add a relay: see
+  [Optional: a relay for strict networks](#optional-a-relay-for-strict-networks).
 - **Made for teams, not crowds.** Every browser connects to every other one: perfect for a team,
   not for hundreds of people on the same board.
 
@@ -132,9 +152,11 @@ npm run build      # production build in dist/, service worker included
 | `npm run lint` · `npm run format` | ESLint and Prettier |
 | `npm run typecheck` | Strict type checking of the app, the service worker, and the tests, specs and configs (three tsconfigs) |
 | `npm run tokens` | Regenerates `src/styles/tokens.css` from `mockup/tokens/variables.css` |
+| `npm run favicon` | Renders `public/favicon.svg` into `public/favicon.ico` (16, 32 and 48 px), which Safari needs |
 
-Every pull request runs `check`, the build and the end-to-end tests ([CI](.github/workflows/ci.yml)); `main` deploys
-to GitHub Pages only after the same checks pass. Dependabot keeps dependencies and actions up to date.
+Changes reach `main` only through pull requests, and every pull request runs `check`, the build and the
+end-to-end tests ([CI](.github/workflows/ci.yml)); `main` deploys to GitHub Pages only after the same checks pass.
+Dependabot opens one grouped pull request when a dependency or action needs a security fix.
 
 To simulate two people on one machine, open the app on both `http://localhost:5173` and
 `http://127.0.0.1:5173` (or in a private window): each one gets its own name and storage. The end-to-end tests

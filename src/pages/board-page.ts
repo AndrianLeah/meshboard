@@ -5,6 +5,9 @@ import { createStore } from '../core/store.ts'
 import { exportBoard, importBoard } from '../core/transfer.ts'
 import { encodeClipboard } from '../core/clipboard.ts'
 import { connect } from '../sync/index.ts'
+import { turnServers } from '../sync/ice.ts'
+import { joinState, SEARCH_MS } from '../sync/status.ts'
+import type { JoinFacts } from '../sync/status.ts'
 import { createBoard } from '../board/board.ts'
 import { createCommands, bindKeyboard } from '../commands/registry.ts'
 import { createToolbar } from '../ui/toolbar.ts'
@@ -16,6 +19,7 @@ import { createContextBar } from '../ui/context-bar.ts'
 import { openContextMenu } from '../ui/context-menu.ts'
 import { openShortcutsDialog } from '../ui/shortcuts-dialog.ts'
 import { openEmojiPicker } from '../ui/emoji-picker/emoji-picker.ts'
+import { createJoinNotice } from '../ui/join-notice.ts'
 import { setUserName, shareUrl, touchRecent } from '../core/identity.ts'
 import { readJsonFile, downloadJson, slug, copyText, errorMessage } from '../lib/files.ts'
 import { canInstall, promptInstall } from '../app/pwa.ts'
@@ -37,6 +41,8 @@ interface Chrome {
 export interface OpenBoardOptions {
   /** an export to load into a freshly created board */
   initialData?: BoardExport | null
+  /** created here just now: nobody else has it yet */
+  isNew?: boolean
   goHome?: () => void
 }
 
@@ -45,11 +51,11 @@ export async function openBoard(
   root: HTMLElement,
   token: BoardToken,
   user: User,
-  { initialData = null, goHome }: OpenBoardOptions = {},
+  { initialData = null, isNew = false, goHome }: OpenBoardOptions = {},
 ): Promise<{ close: () => Promise<void> }> {
   const me = { id: user.id, name: user.name }
   const store = createStore(me)
-  const sync = connect(store, token)
+  const sync = connect(store, token, { turnConfig: await turnServers() })
 
   const canvas = h('div', { class: 'board-page__canvas' })
   const page = h('div', { class: 'board-page' }, canvas)
@@ -247,21 +253,39 @@ export async function openBoard(
   const offPeers = sync.presence.onPeers(renderPeople)
   const offMove = sync.presence.onMove((peers) => board.setCursors(peers))
 
+  // ---------- joining: the note on an empty board, warnings on a full one ----------
+
+  const notice = createJoinNotice()
+  page.append(notice.root)
+  const facts: JoinFacts = { peers: 0, connectFailed: false, relaysFailed: false, waited: false }
+  // until the local copy is loaded nothing is known; once a teammate connects or content shows up, the note is done
+  let joining: 'loading' | 'open' | 'done' = 'loading'
+  function updateJoin() {
+    if (joining === 'loading') return
+    const state = joinState({ ...facts, peers: sync.peerCount() })
+    if (joining === 'open' && (state === 'connected' || store.items.size > 0)) joining = 'done'
+    notice.set(joining === 'open' ? state : null)
+  }
+  const waitTimer = setTimeout(() => {
+    facts.waited = true
+    updateJoin()
+  }, SEARCH_MS)
+  const offJoinPeers = sync.presence.onPeers(updateJoin)
+
   const warned = new Set<string>()
   const offError = sync.onError((err) => {
-    if (warned.has(err.code)) return
+    if (err.code === 'relay-failed') facts.relaysFailed = true
+    else if (err.code === 'peer-connect-failed') facts.connectFailed = true
+    else return
+    updateJoin()
+    if (joining === 'open' || warned.has(err.code)) return
     warned.add(err.code)
-    if (err.code === 'relay-failed') {
-      toast("Can't reach the public relays used to find your teammates. Check your connection.", {
-        tone: 'danger',
-        timeout: 8000,
-      })
-    } else if (err.code === 'peer-connect-failed') {
-      toast("Couldn't connect directly to a teammate: your network may block peer-to-peer (see the README, TURN).", {
-        tone: 'danger',
-        timeout: 10000,
-      })
-    }
+    toast(
+      err.code === 'relay-failed'
+        ? "Can't reach the relays that introduce teammates. Check your connection."
+        : "Couldn't connect to a teammate: your networks won't connect to each other. Mobile data and office networks often block direct connections.",
+      { tone: 'danger', timeout: 10000 },
+    )
   })
 
   // ---------- startup ----------
@@ -283,12 +307,15 @@ export async function openBoard(
   board.fitAll()
   chrome.history.update()
 
-  // A board that's still empty (just joined from a link) fits the view when the first content
-  // arrives from teammates; if you draw the first item yourself the view stays put.
+  // A board that's still empty (just joined from a link) says where its content is until it
+  // arrives, then fits the view to it; if you draw the first item yourself the view stays put.
+  joining = isNew || initialData || store.items.size > 0 ? 'done' : 'open'
+  updateJoin()
   if (store.items.size === 0) {
     const once = (_event: unknown, transaction: Y.Transaction) => {
       if (store.items.size === 0) return
       store.items.unobserve(once)
+      updateJoin()
       if (!transaction.local) setTimeout(() => board.fitAll(), 50)
     }
     store.items.observe(once)
@@ -302,6 +329,8 @@ export async function openBoard(
       offPeers()
       offMove()
       offError()
+      offJoinPeers()
+      clearTimeout(waitTimer)
       chrome.history.destroy()
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('cut', onCut)

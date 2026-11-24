@@ -31,6 +31,11 @@ jobs:
         env:
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}/
+          # optional TURN relays (Settings → Secrets and variables → Actions → Variables), see the README
+          VITE_TURN_URLS: ${{ vars.TURN_URLS }}
+          VITE_TURN_USERNAME: ${{ vars.TURN_USERNAME }}
+          VITE_TURN_CREDENTIAL: ${{ vars.TURN_CREDENTIAL }}
+          VITE_TURN_CREDENTIALS_URL: ${{ vars.TURN_CREDENTIALS_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

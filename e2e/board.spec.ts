@@ -143,3 +143,19 @@ test('a board created from the example file has every item', async ({ page }) =>
   await expect(page.locator('[data-reaction]').first()).toBeVisible()
   await expect(page.getByLabel('Board title')).toHaveValue('Sprint 42 retro')
 })
+
+test('a board opened from its link says where its content is until there is some', async ({ page }) => {
+  await createBoard(page)
+  const notice = page.locator('.join-notice')
+  await expect(notice, 'a board created here has nothing to wait for').toBeHidden()
+
+  // a link to a board this browser has never had; with the relays closed off, nobody can be found
+  await page.goto('/#e2eJoinRoom01.e2eJoinSecret0001')
+  await expect(page.locator('.board')).toBeVisible()
+  await expect(notice).toBeVisible()
+  await expect(notice.getByRole('heading')).toHaveText("Can't look for teammates")
+
+  // the note lets clicks through: starting the board yourself puts it away
+  await expect(await addNote(page, 640, 360, 'First idea')).toHaveCount(1)
+  await expect(notice).toBeHidden()
+})
