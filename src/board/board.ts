@@ -36,6 +36,8 @@ export interface BoardHooks {
   onPointer?: (p: Point | null) => void
   onContextMenu?: (at: Point) => void
   onAddReaction?: (id: string, anchor: HTMLElement) => void
+  /** whether a picture from this address may be shown (default: any) */
+  canShowImage?: (src: string) => boolean
 }
 
 const RIGHT_DRAG = 4 // screen px before a right-button press becomes a pan
@@ -94,6 +96,7 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
     {
       store,
       me,
+      canShowImage: hooks.canShowImage,
       editor: {
         onInput(id, text) {
           store.update({ [id]: { text } })
@@ -164,7 +167,7 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
 
   function startEditing(id: string, { fresh = false } = {}) {
     const it = getItem(id) || store.get(id)
-    if (!it || it.type === 'arrow' || it.type === 'path' || it.locked) return
+    if (!it || it.type === 'arrow' || it.type === 'path' || it.type === 'image' || it.locked) return
     editing = { id, fresh }
     selection = new Set([id])
     render()
@@ -511,18 +514,22 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
 
   // ---------- actions (called by the commands) ----------
 
+  /** Where pasted content goes: the pointer when it's over the board, or the middle of the screen. */
+  function pastePoint(): Point {
+    const v = view.visibleRect()
+    const p = lastPointer
+    const inView = p && p.x > v.x && p.x < v.x + v.w && p.y > v.y && p.y < v.y + v.h
+    return inView ? p : { x: v.x + v.w / 2, y: v.y + v.h / 2 }
+  }
+
   const actions = createActions(ctx, {
     rememberColor: (kind, color) => (lastColor[kind] = color),
-    pasteAt() {
-      const v = view.visibleRect()
-      const p = lastPointer
-      const inView = p && p.x > v.x && p.x < v.x + v.w && p.y > v.y && p.y < v.y + v.h
-      return inView ? p : { x: v.x + v.w / 2, y: v.y + v.h / 2 }
-    },
+    pasteAt: pastePoint,
   })
 
   const api = {
     view,
+    pastePoint,
     get tool() {
       return toolId
     },

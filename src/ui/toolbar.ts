@@ -6,10 +6,10 @@ import type { Commands } from '../commands/registry.ts'
 import type { ToolId } from '../board/tools/index.ts'
 import { isShapeType } from '../core/schema.ts'
 
-const GROUPS = [
-  ['select', 'hand'],
-  ['note', 'text', 'shapes', 'connector', 'pen', 'eraser', 'frame'],
-]
+const GROUPS = [['select', 'hand'], ['note', 'text', 'shapes', 'connector', 'pen', 'eraser', 'frame'], ['image']]
+
+/** Buttons that run a command rather than pick a tool. */
+const ACTIONS: Record<string, string> = { image: 'insert-image' }
 
 export function createToolbar({
   commands,
@@ -26,7 +26,7 @@ export function createToolbar({
   GROUPS.forEach((group, i) => {
     if (i) root.append(separator())
     for (const tool of group) {
-      const id = `tool.${tool}`
+      const id = ACTIONS[tool] ?? `tool.${tool}`
       const c = commands.get(id)
       const b = iconButton({
         icon: commands.icon(id),
@@ -34,7 +34,7 @@ export function createToolbar({
         shortcut: commands.shortcut(id),
         placement,
         compact,
-        pressed: false,
+        pressed: id.startsWith('tool.') ? false : undefined,
         onClick: () => commands.run(id),
       })
       if (tool === 'shapes') b.setAttribute('aria-haspopup', 'true')
@@ -48,7 +48,7 @@ export function createToolbar({
     /** The shapes button, where the shapes flyout opens. */
     shapesButton: buttons.get('tool.shapes')!,
     update(tool: ToolId) {
-      for (const [id, b] of buttons) setPressed(b, commands.isChecked(id))
+      for (const [id, b] of buttons) if (id.startsWith('tool.')) setPressed(b, commands.isChecked(id))
       // the shapes button shows the shape in use
       const next: IconName = isShapeType(tool) ? tool : 'shapes'
       if (next !== shapeIcon) {

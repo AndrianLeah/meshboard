@@ -36,6 +36,17 @@ jobs:
           VITE_TURN_USERNAME: ${{ vars.TURN_USERNAME }}
           VITE_TURN_CREDENTIAL: ${{ vars.TURN_CREDENTIAL }}
           VITE_TURN_CREDENTIALS_URL: ${{ vars.TURN_CREDENTIALS_URL }}
+          # optional image uploads (Variables, as above), see docs/self-hosting.md#images
+          VITE_UPLOAD_URL: ${{ vars.UPLOAD_URL }}
+          VITE_UPLOAD_METHOD: ${{ vars.UPLOAD_METHOD }}
+          VITE_UPLOAD_FIELD: ${{ vars.UPLOAD_FIELD }}
+          VITE_UPLOAD_HEADERS: ${{ vars.UPLOAD_HEADERS }}
+          VITE_UPLOAD_CREDENTIALS: ${{ vars.UPLOAD_CREDENTIALS }}
+          VITE_UPLOAD_URL_PATH: ${{ vars.UPLOAD_URL_PATH }}
+          VITE_UPLOAD_WIDTH_PATH: ${{ vars.UPLOAD_WIDTH_PATH }}
+          VITE_UPLOAD_HEIGHT_PATH: ${{ vars.UPLOAD_HEIGHT_PATH }}
+          VITE_UPLOAD_MAX_BYTES: ${{ vars.UPLOAD_MAX_BYTES }}
+          VITE_IMAGE_ORIGINS: ${{ vars.IMAGE_ORIGINS }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

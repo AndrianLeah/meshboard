@@ -1,5 +1,7 @@
 // Which Meshboard this is. A self-hosted server answers ./config.json; GitHub Pages and other static
 // hosts answer 404, and the app runs peer to peer. One build serves both.
+import { parseImageSettings } from '../core/images.ts'
+import type { ImageSettings } from '../core/images.ts'
 
 export type AuthKind = 'none' | 'oidc' | 'proxy' | 'webhook'
 
@@ -12,6 +14,8 @@ export type Runtime =
       /** the app's path on the server, ending with / */
       basePath: string
       auth: { kind: AuthKind; loginUrl: string | null; canSignOut: boolean }
+      /** where pictures may come from, and where files are uploaded */
+      images: ImageSettings
     }
 
 const KINDS: readonly AuthKind[] = ['none', 'oidc', 'proxy', 'webhook']
@@ -34,6 +38,7 @@ export function parseRuntime(raw: unknown): Runtime {
       loginUrl: typeof login === 'string' && login.startsWith('/') && !login.startsWith('//') ? login : null,
       canSignOut: raw.auth.canSignOut === true,
     },
+    images: parseImageSettings(raw.images),
   }
 }
 

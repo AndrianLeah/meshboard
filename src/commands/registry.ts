@@ -33,6 +33,8 @@ export interface PageActions {
   install: () => void
   canInstall: () => boolean
   goHome: () => void
+  /** adds a picture: a file (when uploads are set up) or an address */
+  insertImage: () => void
 }
 
 export type Commands = ReturnType<typeof createCommands>
@@ -175,6 +177,7 @@ export function createCommands({
       checked: () => board.view.grid,
     },
     { id: 'shortcuts', label: 'Keyboard shortcuts', icon: 'keyboard', run: () => ui.openShortcuts() },
+    { id: 'insert-image', label: 'Image', icon: 'image', run: () => ui.insertImage() },
 
     { id: 'share', label: 'Share', icon: 'link', run: () => ui.share() },
     { id: 'export', label: 'Export board (.json)', icon: 'download', run: () => ui.exportBoard() },

@@ -72,7 +72,9 @@ that starting costs nothing and growing doesn't mean changing tools.
   or your own server fixes that (see [below](#optional-a-relay-for-strict-networks)).
 - **Guests from outside the organisation** on a self-hosted server: everyone signs in, and there are
   no guest links yet.
-- **Images and files.** Boards hold notes, shapes, text and drawings; images aren't supported yet.
+- **Storing files.** Images on a board are addresses: Meshboard never keeps the files. Pictures
+  are uploaded to storage you already have, or added by their address; attachments such as PDFs
+  aren't supported.
 
 ## Features
 
@@ -80,6 +82,7 @@ that starting costs nothing and growing doesn't mean changing tools.
 | --- | --- |
 | 🗒️ **Sticky notes that fit their text** | Text is centred and sized to fit the note. Double-click anywhere for a new note, or use the **+** around a selected one to add the next. |
 | 🔷 **Shapes, text, frames and a pen** | Rectangles, ovals, triangles, diamonds, text boxes and freehand strokes in eight colours. Frames are titled sheets that carry their content when they move. |
+| 🖼️ **Images** | Paste an image's address, drop a picture or use the image button. Meshboard keeps only the address: files go to an upload endpoint you choose ([how](docs/self-hosting.md#images)). |
 | ↗️ **Connectors** | Drag from the dots around any item to another one: the line follows both. Arrow ends and dashed lines from the context bar. |
 | 🎉 **Reactions** | Any emoji on any note, from a searchable picker that remembers your favourites. Hover a chip to see who reacted. |
 | 🧭 **Familiar controls** | Context bar above the selection, right-click menu, smart guides, copy and paste, groups, locks and the shortcuts other whiteboards use (press <kbd>?</kbd>). |
@@ -167,6 +170,13 @@ public site anyway.
 | `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | Or fixed credentials, from a provider such as [ExpressTURN](https://www.expressturn.com) (free tier: 1,000 GB a month) or your own [coturn](https://github.com/coturn/coturn). Separate several URLs with commas |
 
 Only connections that can't go direct use the relay, so a small free tier goes a long way.
+
+### Optional: uploading images
+
+Anyone can add an image by pasting its https address. To let people add picture files too, set
+`UPLOAD_URL` (and the converter, `UPLOAD_URL_PATH`) to an upload endpoint you already have, as
+repository variables like the relay's: see [Images](docs/self-hosting.md#images). Meshboard never
+stores the files, only the addresses your endpoint answers with.
 
 ### With accounts: your own server
 

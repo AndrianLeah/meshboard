@@ -493,3 +493,37 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* images: the picture fills its box; a placeholder when it can't load or isn't allowed */
+.item--image {
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.image__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.image__placeholder {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: inherit;
+  background: var(--surface-hover);
+  text-align: center;
+}
+.item--image.is-broken .image__img {
+  display: none;
+}
+.item--image.is-broken .image__placeholder,
+.item--image.is-blocked .image__placeholder {
+  display: flex;
+}

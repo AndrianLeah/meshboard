@@ -97,6 +97,40 @@ minute. Check the signature and reject timestamps older than five minutes. To li
 instead, send people to `/auth/token?token=<one-time token>&returnTo=/b/<id>`: Meshboard posts
 `{"token": "…"}` the same way and starts its own session.
 
+## Images
+
+An image on a board is an address: Meshboard never stores files. People paste an image's https
+address, drop a picture, or use the **Image** button. To add files, point Meshboard at an upload
+endpoint you already have (your storage, your CDN, an internal service): the app sends the file
+there and a **converter** reads the image's address from the answer.
+
+| Variable                                  | Default            | What it's for                                                                                     |
+| ----------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `UPLOAD_URL`                              | none: no uploads   | The endpoint (https). The file goes in a `multipart/form-data` request                             |
+| `UPLOAD_METHOD`, `UPLOAD_FIELD`           | `POST`, `file`     | The method and the form field the file is sent in                                                 |
+| `UPLOAD_URL_PATH`                         | empty              | The converter: where the address is in the JSON answer (`data.url`, `files.0.location`). Empty: the answer is the address itself, as text |
+| `UPLOAD_WIDTH_PATH`, `UPLOAD_HEIGHT_PATH` | empty              | Where the picture's size is, if the answer has it (otherwise the browser measures it)              |
+| `UPLOAD_CREDENTIALS`                      | `omit`             | `include` sends the browser's cookies for the endpoint's site, for storage behind your sign-in    |
+| `UPLOAD_HEADERS`                          | none               | Extra headers as JSON (`{"X-Api-Key": "…"}`). Everyone who can open Meshboard can read them       |
+| `UPLOAD_MAX_BYTES`                        | `10000000`         | The largest file sent                                                                            |
+| `IMAGE_ORIGINS`                           | any https address  | The sites images may come from (`https://images.acme.example`), comma-separated                  |
+
+For example, an endpoint that answers `{"data": {"url": "https://cdn.acme.example/a1b2.png"}}`
+needs `UPLOAD_URL_PATH=data.url` and, to show only your pictures,
+`IMAGE_ORIGINS=https://cdn.acme.example`. A relative address in the answer is read against
+`UPLOAD_URL`.
+
+- **The endpoint must allow Meshboard's site** (CORS: `Access-Control-Allow-Origin`, and
+  `Access-Control-Allow-Credentials` with `UPLOAD_CREDENTIALS=include`). PNG, JPEG, GIF, WebP and
+  AVIF files are sent; SVG files aren't.
+- **Addresses are checked everywhere:** https only, no credentials in them, and only from
+  `IMAGE_ORIGINS` when it's set. An image from any other site, added by an older app or a script,
+  isn't loaded: the board shows a placeholder with the site's name, so that site never learns who
+  is looking. The Content-Security-Policy allows the same sites and the endpoint, nothing else.
+- **On the public site** (GitHub Pages), the same settings are repository variables with the same
+  names (`UPLOAD_URL`, `IMAGE_ORIGINS`…): they're built into the page, so never put a secret in
+  `UPLOAD_HEADERS` there.
+
 ## Who can open a board
 
 A board has an owner, members (editors or viewers) and a general access: only the people added,

@@ -41,7 +41,7 @@ const ALL: HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
 /** Which resize handles an item gets. */
 function handlesFor(it: BoxItem): HandlePosition[] {
   if (it.locked) return []
-  if (it.type === 'note' || it.type === 'path') return CORNERS
+  if (it.type === 'note' || it.type === 'path' || it.type === 'image') return CORNERS
   if (it.type === 'text') return ['e', 'w']
   return ALL
 }

@@ -15,6 +15,7 @@ import type { Runtime } from './app/runtime.ts'
 import { api, ApiError } from './hosted/api.ts'
 import type { Me } from './hosted/api.ts'
 import { forgetLocalCopies } from './sync/server.ts'
+import { imageSettingsFromEnv } from './core/images.ts'
 import type { BoardExport } from './core/types.ts'
 
 const root = document.getElementById('app')!
@@ -60,6 +61,8 @@ function startPeerToPeer() {
         initialData: created?.data,
         isNew: Boolean(created),
         goHome,
+        // whoever builds the public site can set an upload endpoint (VITE_UPLOAD_*)
+        images: imageSettingsFromEnv({ ...import.meta.env }),
       })
     } else {
       current = renderHome(root, { user, parsed, enter, create, repoUrl })
@@ -213,7 +216,7 @@ function startHosted(rt: Extract<Runtime, { mode: 'server' }>) {
         },
       },
       { id: user.id, name: user.name },
-      { goHome },
+      { goHome, images: rt.images },
     )
   })
 

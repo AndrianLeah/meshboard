@@ -18,6 +18,19 @@ export type AuthConfig =
     }
   | { kind: 'webhook'; url: URL; secret: string }
 
+/** Image uploads: the endpoint files go to and the converter that reads its answer (src/core/images.ts). */
+export interface UploadConfig {
+  url: string
+  method: 'POST' | 'PUT'
+  field: string
+  headers: Record<string, string>
+  credentials: 'include' | 'omit'
+  urlPath: string
+  widthPath: string
+  heightPath: string
+  maxBytes: number
+}
+
 export interface Config {
   /** the public address: links, sign-in redirects, the Origin check */
   url: URL
@@ -48,6 +61,10 @@ export interface Config {
   webhook: { url: URL; secret: string } | null
   maxBoardBytes: number
   maxMessageBytes: number
+  /** where files are uploaded; null: images only by address */
+  upload: UploadConfig | null
+  /** origins images may come from; empty: any https address */
+  imageOrigins: string[]
   /** the built app (dist/) */
   staticDir: string
   sessionDays: number
@@ -194,6 +211,59 @@ export function parseConfig(env: Env): Config {
     webhook = { url: hookUrl, secret: s ?? '' }
   }
 
+  let upload: UploadConfig | null = null
+  const uploadUrl = url('UPLOAD_URL')
+  if (uploadUrl) {
+    if (uploadUrl.protocol !== 'https:' && !LOOPBACK.has(uploadUrl.hostname)) problems.push('UPLOAD_URL must be https')
+    let headers: Record<string, string> = {}
+    const rawHeaders = get('UPLOAD_HEADERS')
+    if (rawHeaders) {
+      try {
+        const parsed: unknown = JSON.parse(rawHeaders)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object')
+        for (const [k, v] of Object.entries(parsed)) {
+          if (!HEADER.test(k) || typeof v !== 'string') throw new Error(k)
+          headers[k] = v
+        }
+      } catch {
+        problems.push('UPLOAD_HEADERS must be a JSON object of header names and text values')
+        headers = {}
+      }
+    }
+    const method = get('UPLOAD_METHOD') ?? 'POST'
+    if (method !== 'POST' && method !== 'PUT') problems.push('UPLOAD_METHOD must be POST or PUT')
+    const credentials = get('UPLOAD_CREDENTIALS') ?? 'omit'
+    if (credentials !== 'include' && credentials !== 'omit') problems.push('UPLOAD_CREDENTIALS must be include or omit')
+    const path = (name: string) => {
+      const v = get(name) ?? ''
+      if (v && !/^[A-Za-z0-9_$-]+(\.[A-Za-z0-9_$-]+)*$/.test(v)) problems.push(`${name} must be a path like data.url`)
+      return v
+    }
+    const field = get('UPLOAD_FIELD') ?? 'file'
+    if (!HEADER.test(field)) problems.push('UPLOAD_FIELD must be a simple field name')
+    upload = {
+      url: uploadUrl.toString(),
+      method: method === 'PUT' ? 'PUT' : 'POST',
+      field,
+      headers,
+      credentials: credentials === 'include' ? 'include' : 'omit',
+      urlPath: path('UPLOAD_URL_PATH'),
+      widthPath: path('UPLOAD_WIDTH_PATH'),
+      heightPath: path('UPLOAD_HEIGHT_PATH'),
+      maxBytes: int('UPLOAD_MAX_BYTES', 10_000_000, 1000, 100_000_000),
+    }
+  }
+  const imageOrigins: string[] = []
+  for (const part of (get('IMAGE_ORIGINS') ?? '').split(/[\s,]+/).filter(Boolean)) {
+    try {
+      const o = new URL(part)
+      if (o.protocol !== 'https:') throw new Error('not https')
+      imageOrigins.push(o.origin)
+    } catch {
+      problems.push(`IMAGE_ORIGINS has something that isn't an https origin: "${part}"`)
+    }
+  }
+
   const config: Config = {
     url: publicUrl,
     basePath,
@@ -226,6 +296,8 @@ export function parseConfig(env: Env): Config {
     maxMessageBytes: int('MAX_MESSAGE_BYTES', 2_000_000, 64_000, 50_000_000),
     staticDir: resolve(get('STATIC_DIR') ?? DEFAULT_STATIC),
     sessionDays: int('SESSION_DAYS', 30, 1, 365),
+    upload,
+    imageOrigins,
   }
   if (problems.length) throw new ConfigError(problems)
   return config

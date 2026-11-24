@@ -78,6 +78,7 @@ export function createApp(config: Config, deps: AppDeps) {
     orgName: config.orgName,
     basePath: config.basePath,
     auth: auth.info,
+    images: { upload: config.upload, origins: config.imageOrigins },
   })
 
   async function handle(req: IncomingMessage, res: ServerResponse) {

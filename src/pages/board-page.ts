@@ -27,6 +27,10 @@ import { createJoinNotice } from '../ui/join-notice.ts'
 import { setUserName, shareUrl, touchRecent } from '../core/identity.ts'
 import { readJsonFile, downloadJson, slug, copyText, errorMessage } from '../lib/files.ts'
 import { canInstall, promptInstall } from '../app/pwa.ts'
+import { measureImage, uploadImage } from '../app/images.ts'
+import { NO_UPLOADS, UPLOAD_TYPES, fitImage, imageUrls, isAllowedImage } from '../core/images.ts'
+import type { ImageSettings, UploadedImage } from '../core/images.ts'
+import { imageSrc } from '../core/schema.ts'
 import type * as Y from 'yjs'
 import type { BoardExport, BoardToken, Item, User } from '../core/types.ts'
 
@@ -67,6 +71,8 @@ export interface OpenBoardOptions {
   /** created here just now: nobody else has it yet */
   isNew?: boolean
   goHome?: () => void
+  /** where pictures may come from, and where files are uploaded */
+  images?: ImageSettings
 }
 
 /** Opens a board inside `root`: peer to peer from its token, or from a self-hosted server. */
@@ -74,7 +80,7 @@ export async function openBoard(
   root: HTMLElement,
   target: BoardTarget,
   user: User,
-  { initialData = null, isNew = false, goHome }: OpenBoardOptions = {},
+  { initialData = null, isNew = false, goHome, images = NO_UPLOADS }: OpenBoardOptions = {},
 ): Promise<{ close: () => Promise<void> }> {
   const me = { id: user.id, name: user.name }
   const store = createStore(me)
@@ -107,6 +113,7 @@ export async function openBoard(
     onPointer: (p) => sync.presence.set(p ? { x: Math.round(p.x), y: Math.round(p.y) } : { x: null, y: null }),
     onContextMenu: (point) => openContextMenu(point, { commands, board }),
     onAddReaction: (id, anchor) => openReactionPicker(id, anchor),
+    canShowImage: (src) => isAllowedImage(src, images),
   })
 
   // ---------- page actions ----------
@@ -141,11 +148,115 @@ export async function openBoard(
     }
   }
 
+  // ---------- images: addresses on the board, files through the upload endpoint ----------
+
+  /** Puts pictures side by side around `at`, each at its own proportions. */
+  async function addImages(list: readonly UploadedImage[], at = board.pastePoint()) {
+    const shown = list.filter((img) => isAllowedImage(img.src, images))
+    if (shown.length < list.length)
+      toast(
+        images.origins.length
+          ? `Images can only come from ${images.origins.map((o) => new URL(o).host).join(', ')}.`
+          : 'Images need an https address.',
+        { tone: 'danger' },
+      )
+    if (!shown.length) return
+    const sized = await Promise.all(
+      shown.map(async (img) => {
+        const size = img.w && img.h ? img : await measureImage(img.src)
+        return { src: img.src, ...fitImage(size.w, size.h) }
+      }),
+    )
+    const gap = 24
+    const total = sized.reduce((sum, s) => sum + s.w, 0) + gap * (sized.length - 1)
+    let x = at.x - total / 2
+    store.stopCapturing()
+    const ids = sized.map((s) => {
+      const id = store.create({
+        type: 'image',
+        x: Math.round(x),
+        y: Math.round(at.y - s.h / 2),
+        w: s.w,
+        h: s.h,
+        src: s.src,
+        alt: '',
+      })
+      x += s.w + gap
+      return id
+    })
+    store.stopCapturing()
+    board.renderNow()
+    board.select(ids)
+  }
+
+  /** Sends files to the upload endpoint, then puts what it answered on the board. */
+  async function uploadFiles(files: readonly File[], at = board.pastePoint()) {
+    if (readOnly) return
+    if (!images.upload) {
+      toast("Images can't be uploaded here: paste an image's https address instead.", { tone: 'danger' })
+      return
+    }
+    const upload = images.upload
+    const pictures = files.filter((f) => UPLOAD_TYPES.includes(f.type)).slice(0, 10)
+    if (!pictures.length) {
+      toast('Only PNG, JPEG, GIF, WebP and AVIF images can be added.', { tone: 'danger' })
+      return
+    }
+    toast(pictures.length > 1 ? `Uploading ${pictures.length} images…` : 'Uploading the image…')
+    const results = await Promise.allSettled(pictures.map((f) => uploadImage(f, upload)))
+    const done = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
+    const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+    if (failed) toast(errorMessage(failed.reason), { tone: 'danger', timeout: 8000 })
+    if (done.length) await addImages(done, at)
+  }
+
+  /** Pasted or dropped text: image addresses become images. True when it was handled here. */
+  function imagesFromText(text: string, at?: { x: number; y: number }): boolean {
+    const urls = imageUrls(text)
+    if (!urls || readOnly) return false
+    void addImages(
+      urls.map((src) => ({ src })),
+      at,
+    )
+    return true
+  }
+
+  async function insertImage() {
+    if (images.upload) {
+      const picker = h('input', { type: 'file', accept: UPLOAD_TYPES.join(','), multiple: true, hidden: true })
+      picker.addEventListener('change', () => {
+        const files = [...(picker.files ?? [])]
+        picker.remove()
+        if (files.length) void uploadFiles(files)
+      })
+      page.append(picker)
+      picker.click()
+      return
+    }
+    const address = await promptText({
+      title: 'Add an image',
+      label: 'Image address (https)',
+      confirm: 'Add',
+      maxlength: 2048,
+    })
+    if (!address) return
+    const src = imageSrc(address)
+    if (!src) return toast('That isn’t an https address.', { tone: 'danger' })
+    await addImages([{ src }])
+  }
+
   async function paste() {
     try {
       const [entry] = await navigator.clipboard.read()
+      const picture = entry.types.find((t) => UPLOAD_TYPES.includes(t))
+      if (picture && !readOnly) {
+        const blob = await entry.getType(picture)
+        return void uploadFiles([new File([blob], 'pasted-image', { type: picture })])
+      }
       const read = async (type: string) => (entry.types.includes(type) ? (await entry.getType(type)).text() : '')
-      if (board.paste({ html: await read('text/html'), text: await read('text/plain') })) return
+      const text = await read('text/plain')
+      if (imagesFromText(text)) return
+      if (board.paste({ html: await read('text/html'), text })) return
     } catch {
       /* no permission: fall back to what was copied here */
     }
@@ -232,6 +343,7 @@ export async function openBoard(
       install: () => void promptInstall(),
       canInstall,
       goHome: () => goHome?.(),
+      insertImage: () => void insertImage(),
     },
   })
 
@@ -275,13 +387,46 @@ export async function openBoard(
   function onPaste(e: ClipboardEvent) {
     if (isTyping(document.activeElement) || !e.clipboardData) return
     e.preventDefault()
+    if (readOnly) return
+    const files = [...e.clipboardData.files].filter((f) => f.type.startsWith('image/'))
+    if (files.length) return void uploadFiles(files)
     const html = e.clipboardData.getData('text/html')
     const text = e.clipboardData.getData('text/plain')
+    if (imagesFromText(text)) return
     if (!board.paste({ html, text }) && memory) board.paste({ items: memory })
   }
   document.addEventListener('copy', onCopy)
   document.addEventListener('cut', onCut)
   document.addEventListener('paste', onPaste)
+
+  // dropping pictures (files, or an image dragged from another page) where they should go
+  const dropKinds = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])]
+  function onDragOver(e: DragEvent) {
+    const kinds = dropKinds(e)
+    if (readOnly || !(kinds.includes('Files') || kinds.includes('text/uri-list'))) return
+    e.preventDefault()
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  }
+  function onDrop(e: DragEvent) {
+    if (readOnly || !e.dataTransfer) return
+    e.preventDefault()
+    const at = board.view.toWorld(e.clientX, e.clientY)
+    const files = [...e.dataTransfer.files]
+    if (files.length) return void uploadFiles(files, at)
+    const text = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
+    if (
+      !imagesFromText(
+        text
+          .split(/\r?\n/)
+          .filter((l) => !l.startsWith('#'))
+          .join('\n'),
+        at,
+      )
+    )
+      toast('Only pictures can be dropped on the board.', { tone: 'danger' })
+  }
+  canvas.addEventListener('dragover', onDragOver)
+  canvas.addEventListener('drop', onDrop)
   const unbindKeys = bindKeyboard(commands)
   const offHistory = store.onHistoryChange(() => chrome.history.update())
 
@@ -425,6 +570,8 @@ export async function openBoard(
       document.removeEventListener('copy', onCopy)
       document.removeEventListener('cut', onCut)
       document.removeEventListener('paste', onPaste)
+      canvas.removeEventListener('dragover', onDragOver)
+      canvas.removeEventListener('drop', onDrop)
       store.meta.unobserve(syncTitle)
       board.destroy()
       await sync.destroy()

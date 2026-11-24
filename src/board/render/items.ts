@@ -7,6 +7,7 @@ import type {
   BoxItem,
   ColorKey,
   FrameItem,
+  ImageItem,
   Item,
   NoteItem,
   PathItem,
@@ -123,7 +124,7 @@ interface RenderedNode {
 
 export function createItemsRenderer(
   layers: { frames: HTMLElement; items: HTMLElement },
-  ctx: { store: Store; me: User; editor: EditorHooks },
+  ctx: { store: Store; me: User; editor: EditorHooks; canShowImage?: (src: string) => boolean },
 ) {
   const nodes = new Map<string, RenderedNode>()
   const { store, me } = ctx
@@ -193,6 +194,8 @@ export function createItemsRenderer(
         return paintFrame(el as HTMLElement | null, it, state)
       case 'path':
         return paintPath(el as SVGSVGElement | null, it, state)
+      case 'image':
+        return paintImage(el as HTMLElement | null, it, state)
       default:
         return paintShape(el as HTMLElement | null, it, state)
     }
@@ -333,6 +336,56 @@ export function createItemsRenderer(
       svg('path', { class: 'path__stroke', d: strokePath(it), 'stroke-width': it.width }),
     )
     place(root, it, index)
+    return root
+  }
+
+  /**
+   * A picture by its address. From an origin this board doesn't allow, nothing is fetched (the
+   * other site would learn who's looking): a placeholder names the site instead.
+   */
+  function paintImage(el: HTMLElement | null, it: ImageItem, { index, selected }: PaintState): HTMLElement {
+    const root = el || h('div', { dataset: { id: it.id } })
+    const allowed = ctx.canShowImage ? ctx.canShowImage(it.src) : true
+    root.className = cls(
+      'item item--image',
+      selected && 'is-selected',
+      it.locked && 'is-locked',
+      !allowed && 'is-blocked',
+    )
+    place(root, it, index)
+    const current = root.querySelector('img')
+    if (allowed && current?.getAttribute('src') === it.src) {
+      current.alt = it.alt
+      return root
+    }
+    if (!allowed) {
+      root.replaceChildren(
+        h(
+          'div',
+          { class: 'image__placeholder' },
+          h('span', { class: 'ds-caption', text: `Image from ${new URL(it.src).host}` }),
+        ),
+      )
+      return root
+    }
+    const img = h('img', {
+      class: 'image__img',
+      src: it.src,
+      alt: it.alt,
+      draggable: 'false',
+      decoding: 'async',
+      referrerpolicy: 'no-referrer',
+    })
+    img.addEventListener('error', () => root.classList.add('is-broken'))
+    img.addEventListener('load', () => root.classList.remove('is-broken'))
+    root.replaceChildren(
+      img,
+      h(
+        'div',
+        { class: 'image__placeholder' },
+        h('span', { class: 'ds-caption', text: it.alt || "This image can't be loaded" }),
+      ),
+    )
     return root
   }
 
