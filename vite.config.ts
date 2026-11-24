@@ -54,10 +54,32 @@ function serviceWorker(): Plugin {
 // public address for link previews (og:image); the deploy workflow sets it
 process.env.VITE_SITE_URL ||= './'
 
+// `MESHBOARD_SERVER=http://localhost:8080 npm run dev` develops the self-hosted app against a
+// running server (npm run server): its addresses go through Vite, and the page gets the <base>
+// the server would give it.
+const server = process.env.MESHBOARD_SERVER
+function devServer(): Plugin {
+  return {
+    name: 'meshboard-dev-server',
+    apply: 'serve',
+    transformIndexHtml: (html) => (server ? html.replace(/<head>/i, '<head>\n    <base href="/" />') : html),
+  }
+}
+
 // relative base: works at https://user.github.io/<repo>/ with no configuration
 export default defineConfig({
   base: './',
   // the emoji data (~570 kB, ~86 kB gzipped) is its own chunk, loaded when the picker first opens
   build: { target: 'es2022', chunkSizeWarningLimit: 600 },
-  plugins: [serviceWorker()],
+  plugins: [serviceWorker(), devServer()],
+  server: server
+    ? {
+        proxy: {
+          '/config.json': server,
+          '/api': server,
+          '/auth': server,
+          '/sync': { target: server, ws: true },
+        },
+      }
+    : {},
 })

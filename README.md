@@ -119,10 +119,25 @@ public site anyway.
 
 Only connections that can't go direct use the relay, so a small free tier goes a long way.
 
+### With accounts: your own server
+
+For a company that wants boards kept on its own server, sign-in with the accounts it already has
+(OpenID Connect, an SSO gateway, or its own service) and owners, editors and viewers, Meshboard also
+runs as one container with a database of its own:
+
+```bash
+docker run -p 8080:8080 -v meshboard:/data -e MESHBOARD_URL=http://localhost:8080 ghcr.io/andrianleah/meshboard
+```
+
+A board is then there for whoever opens it, even when nobody else is online, and the home screen
+becomes a dashboard of every board you can open. Sign-in is the only thing it needs from your
+systems. Everything about running it is in [docs/self-hosting.md](docs/self-hosting.md).
+
 ## Good to know
 
-- **A name is not a login.** Anyone with the link can join and pick any name. Share links only
-  with the people who should be on the board.
+- **A name is not a login** (on the public site). Anyone with the link can join and pick any name.
+  Share links only with the people who should be on the board, or run your own server with
+  sign-in.
 - **A board lives with the people who use it.** When nobody has it open, it exists only in the
   browsers that had it. Use **Export** to keep a long-term copy.
 - **Some networks block direct connections.** On mobile data and some office networks teammates
@@ -146,13 +161,14 @@ npm run build      # production build in dist/, service worker included
 
 | Script | What it does |
 | --- | --- |
-| `npm test` | Unit tests (`node --test` on the `.ts` files): the model, sync over an in-memory room, actions, geometry, view maths, files, clipboard, keymap, emoji search |
+| `npm test` | Unit tests (`node --test` on the `.ts` files): the model, sync over an in-memory room, actions, geometry, view maths, files, clipboard, keymap, emoji search; and the server over real HTTP and WebSockets |
 | `npm run test:coverage` | The same, failing below 85% of lines, 80% of branches, 75% of functions |
-| `npm run test:e2e` | [Playwright](https://playwright.dev) tests in [`e2e/`](e2e/), desktop and phone. Run `npx playwright install chromium` once, or set `PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome |
+| `npm run test:e2e` | [Playwright](https://playwright.dev) tests in [`e2e/`](e2e/): desktop, phone, and the self-hosted server. Run `npx playwright install chromium` once, or set `PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome |
 | `npm run lint` · `npm run format` | ESLint and Prettier |
-| `npm run typecheck` | Strict type checking of the app, the service worker, and the tests, specs and configs (three tsconfigs) |
+| `npm run typecheck` | Strict type checking of the app, the service worker, the tests, specs and configs, and the server (four tsconfigs) |
 | `npm run tokens` | Regenerates `src/styles/tokens.css` from `mockup/tokens/variables.css` |
 | `npm run favicon` | Renders `public/favicon.svg` into `public/favicon.ico` (16, 32 and 48 px), which Safari needs |
+| `npm run server` | The self-hosted server ([`server/`](server/)) with the built app: see [docs/self-hosting.md](docs/self-hosting.md) |
 
 Changes reach `main` only through pull requests, and every pull request runs `check`, the build and the
 end-to-end tests ([CI](.github/workflows/ci.yml)); `main` deploys to GitHub Pages only after the same checks pass.
@@ -169,12 +185,14 @@ from the FigCraft mockup ([`mockup/`](mockup/)), and every control comes from th
 | Folder | What it holds |
 | --- | --- |
 | [`src/core/`](src/core/) | The board model on Yjs, item schema and migrations, geometry, clipboard and files (no DOM: tested in Node) |
-| [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero) and presence |
+| [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero), the self-hosted transport (Hocuspocus) and presence |
 | [`src/board/`](src/board/) | The canvas: view (pan, zoom, wheel), renderers, overlay, one file per tool, and the actions the commands call |
 | [`src/commands/`](src/commands/) | Every action by id, and the one shortcut table behind keys, tooltips and the shortcuts panel |
 | [`src/ui/`](src/ui/) | Toolbar, context bar, menus, emoji picker; [`ui/ds/`](src/ui/ds/) is the design system's JavaScript side |
 | [`src/styles/`](src/styles/) | Generated tokens, the design system ([`ds/`](src/styles/ds/)) and layout |
-| [`src/pages/`](src/pages/), [`src/app/`](src/app/) | Home and board screens; install prompt and offline service worker |
+| [`src/pages/`](src/pages/), [`src/app/`](src/app/) | Home, dashboard and board screens; which mode this is (config.json), install prompt and offline service worker |
+| [`src/hosted/`](src/hosted/) | The self-hosted server's API, for the dashboard and the share dialog |
+| [`server/`](server/) | The self-hosted server: sign-in, access, the API, live sync and its own database |
 
 <details>
 <summary><strong>Export format</strong></summary>

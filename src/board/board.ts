@@ -69,6 +69,8 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
   let hoveredId = ''
   let overlayState: OverlayLayers = { marquee: null, guides: [], draft: null, target: null }
   let spaceDown = false
+  /** a viewer's board: dragging pans, nothing can be changed */
+  let readOnly = false
   let lastPointer: Point | null = null
   let frame = 0
   const pointers = new Map<number, Point>()
@@ -342,7 +344,7 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
       return
     }
     const touchPan = e.pointerType === 'touch' && toolId === 'select' && hit.kind === 'canvas'
-    if (e.button === 1 || spaceDown || touchPan) {
+    if (e.button === 1 || spaceDown || touchPan || (readOnly && e.button === 0)) {
       gesture = panGesture(e)
       return
     }
@@ -381,7 +383,7 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
   }
 
   function updateHover(e: PointerEvent, p: Point) {
-    if (toolId !== 'select') return
+    if (toolId !== 'select' || readOnly) return
     const hit = hitTest(e.target)
     let next = hoveredId
     if (hit.kind === 'item' && CONNECTABLE.includes(hit.item.type)) next = hit.item.id
@@ -423,14 +425,14 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
   }
 
   function onDoubleClick(e: MouseEvent) {
-    if (passThrough(e.target) || toolId !== 'select') return
+    if (readOnly || passThrough(e.target) || toolId !== 'select') return
     const hit = hitTest(e.target)
     if (hit.kind === 'item') return startEditing(hit.item.id)
     if (hit.kind === 'canvas') placeNote(ctx, view.toWorld(e.clientX, e.clientY), lastColor.note)
   }
 
   function onClick(e: MouseEvent) {
-    if (!(e.target instanceof Element)) return
+    if (readOnly || !(e.target instanceof Element)) return
     const chip = e.target.closest<HTMLElement>('[data-reaction]')
     const add = e.target.closest<HTMLElement>('[data-add-reaction]')
     const id = (chip || add)?.closest('[data-id]')?.getAttribute('data-id')
@@ -523,6 +525,21 @@ export function createBoard(viewport: HTMLElement, store: Store, hooks: BoardHoo
     view,
     get tool() {
       return toolId
+    },
+    get readOnly() {
+      return readOnly
+    },
+    /** A viewer's board: dragging pans and nothing can be changed (the server ignores edits anyway). */
+    setReadOnly(on: boolean) {
+      readOnly = on
+      if (on) {
+        if (editing) stopEditing()
+        setSelection([])
+        setTool('select')
+        hoveredId = ''
+      }
+      viewport.classList.toggle('is-read-only', on)
+      scheduleRender()
     },
     setTool,
     render: scheduleRender,

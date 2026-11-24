@@ -59,7 +59,9 @@ stores through an in-memory room ([`test/sync.test.ts`](test/sync.test.ts)).
 | [`src/board/`](src/board/) | The canvas: view (pan, zoom), renderers, overlay, one file per tool, and the actions the commands call |
 | [`src/commands/`](src/commands/) | Every action by id, and the one shortcut table behind keys, tooltips and the shortcuts panel |
 | [`src/ui/`](src/ui/) | Toolbar, context bar, menus, emoji picker. The design system's primitives are in [`src/ui/ds/`](src/ui/ds/) and its styles in [`src/styles/ds/`](src/styles/ds/) |
-| [`src/pages/`](src/pages/) | The home screen and the board screen, which put the pieces together |
+| [`src/pages/`](src/pages/) | The home screen, the self-hosted dashboard and the board screen, which put the pieces together |
+| [`src/hosted/`](src/hosted/) | The self-hosted server's API, as the app calls it |
+| [`server/`](server/) | The self-hosted server: settings, sign-in, access rules, the API, live sync, its database. Tests in `server/test/` run it over real HTTP and WebSockets |
 | [`src/app/`](src/app/) | The install prompt and the offline service worker |
 
 Untrusted data (imported files, the clipboard, anything from a peer) is normalised in
@@ -78,8 +80,13 @@ limits, and test it in [`test/schema.test.ts`](test/schema.test.ts).
 - **Tests for new behaviour.** Logic gets unit tests in `test/`; a change people can see on the
   board gets an end-to-end test in `e2e/` when it's practical. Bug fixes come with a test that
   fails without the fix.
-- **Keep it serverless.** No new network services, analytics or trackers. New dependencies need a
-  good reason, because everything ships to every browser.
+- **The app stays serverless by default.** The public build talks to no service of ours: no
+  analytics, no trackers. The self-hosted server lives in [`server/`](server/), is opt-in, and the
+  app only uses it when a server answers `config.json`. New dependencies need a good reason,
+  because everything in the app ships to every browser.
+- **The server trusts nothing it receives.** Check who is asking (`roleFor` in
+  [`server/src/access.ts`](server/src/access.ts)) before every read or change, bind every SQL
+  value through Kysely, and add a test that tries the request as someone who shouldn't succeed.
 
 ## Pull requests
 

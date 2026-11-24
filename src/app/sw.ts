@@ -37,14 +37,20 @@ sw.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
   const url = new URL(request.url)
   if (url.origin !== sw.location.origin) return
+  // a self-hosted server's live answers are never cached: config, sign-in, the API, sync
+  const path = url.pathname.slice(new URL(sw.registration.scope).pathname.length)
+  if (path === 'config.json' || /^(api|auth|sync)(\/|$)/.test(path)) return
 
   if (request.mode === 'navigate') {
     // network first, then the cached shell (the token lives in the hash, so the page is always the same)
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('./', copy))
+          // only the app's own page becomes the offline copy (not a redirect or an error page)
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone()
+            caches.open(CACHE).then((cache) => cache.put('./', copy))
+          }
           return response
         })
         // offline and never cached (the very first visit was offline): a plain network error

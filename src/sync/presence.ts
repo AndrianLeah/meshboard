@@ -8,7 +8,7 @@ export type Peers = Map<string, Peer>
 export type Presence = ReturnType<typeof createPresence>
 
 /** A peer's announcement, validated: it comes from the network. */
-function clean(data: Record<string, unknown>): Peer {
+export function clean(data: Record<string, unknown>): Peer {
   return {
     uid: String(data.uid || '').slice(0, 64),
     name: String(data.name || '').slice(0, 40),
