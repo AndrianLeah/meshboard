@@ -26,6 +26,15 @@ test('defaults per type, and limits', () => {
   assert.equal(frame.group, '')
 })
 
+test('the creation time is a time, not a coordinate', () => {
+  assert.equal(sanitized({ type: 'frame', created: 1_700_000_000_000 }).created, 1_700_000_000_000)
+  for (const created of [-1, 0, NaN, 1e16, 'soon', undefined]) {
+    const before = Date.now()
+    const t = sanitized({ type: 'frame', created }).created
+    assert.ok(t >= before && t <= Date.now(), `${created} becomes now`)
+  }
+})
+
 test('pen strokes keep an even list of points and their original box', () => {
   const p = sanitized({ type: 'path', x: 0, y: 0, w: 10, h: 10, points: [0, 0, 5, 5, 9], width: 99 })
   assert.deepEqual(p.points, [0, 0, 5, 5])
