@@ -1,7 +1,7 @@
 {
   "name": "meshboard",
-  "version": "0.1.0",
-  "description": "Peer-to-peer team whiteboard with no server: sticky notes, shapes, arrows and votes.",
+  "version": "2.0.0",
+  "description": "Peer-to-peer team whiteboard with no server: sticky notes, shapes, frames, connectors and emoji reactions.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -9,8 +9,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test \"test/*.test.mjs\"",
-    "tokens": "node scripts/tokens.mjs"
+    "tokens": "node scripts/tokens.ts",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.sw.json && tsc -p tsconfig.node.json",
+    "test": "node --test \"test/*.test.ts\"",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=\"src/**\" --test-coverage-lines=85 --test-coverage-branches=80 --test-coverage-functions=75 \"test/*.test.ts\"",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",
@@ -20,6 +27,14 @@
     "yjs": "13.6.33"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.0",
+    "@types/node": "22.19.1",
+    "eslint": "10.14.0",
+    "globals": "17.14.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
     "vite": "8.3.8"
   },
   "keywords": [
@@ -30,6 +45,10 @@
     "crdt",
     "yjs",
     "pwa",
-    "sticky-notes"
-  ]
+    "sticky-notes",
+    "design-system"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  }
 }

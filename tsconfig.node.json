@@ -1,0 +1,9 @@
+{
+  // Code that runs in Node (tests, end-to-end specs, scripts, tool configs).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": ["test/**/*.ts", "e2e/**/*.ts", "scripts/**/*.ts", "*.config.ts"],
+  "exclude": []
+}

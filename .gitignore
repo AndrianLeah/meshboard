@@ -4,6 +4,11 @@ dist/
 *.local
 .claude/
 
+# test output
+coverage/
+playwright-report/
+test-results/
+
 # Design mockups: the FigCraft file, the tokens and the foundations sheet are committed (binaries through
 # Git LFS, see .gitattributes). The PNG of each screen is an export of the FigCraft file, so it stays local.
 mockup/png/*

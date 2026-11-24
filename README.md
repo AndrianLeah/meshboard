@@ -11,6 +11,7 @@ Browsers talk to each other directly: no accounts, no backend, nothing to pay fo
 
 [**Open Meshboard →**](https://andrianleah.github.io/meshboard/) &nbsp;·&nbsp; [How it works](#how-it-works) &nbsp;·&nbsp; [Host your own](#host-your-own-in-5-minutes)
 
+[![CI](https://github.com/AndrianLeah/meshboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AndrianLeah/meshboard/actions/workflows/ci.yml)
 [![Deploy](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml/badge.svg)](https://github.com/AndrianLeah/meshboard/actions/workflows/deploy.yml)
 [![License: MIT](docs/badges/license.svg)](LICENSE)
 [![Backend: none](docs/badges/backend.svg)](#how-it-works)
@@ -106,24 +107,39 @@ Meshboard is a static site: GitHub Pages is all it needs.
   browsers that had it. Use **Export** to keep a long-term copy.
 - **Some corporate networks block peer-to-peer.** If teammates can't connect, add a TURN server
   (Cloudflare and Metered have free tiers) by passing `turnConfig` to `connect()` in
-  [`src/sync/index.js`](src/sync/index.js).
+  [`src/sync/index.ts`](src/sync/index.ts).
 - **Made for teams, not crowds.** Every browser connects to every other one: perfect for a team,
   not for hundreds of people on the same board.
 
 ## Development
 
-Requires Node 22 or later.
+Written in strict TypeScript. Requires Node 22.18 or later (see `.nvmrc`): Node runs the TypeScript tests
+directly, and Vite compiles the app.
 
 ```bash
 npm install
-npm run dev     # http://localhost:5173
-npm test        # model, geometry, files, clipboard and keymap tests
-npm run tokens  # regenerate src/styles/tokens.css from mockup/tokens/variables.css
-npm run build   # production build in dist/, service worker included
+npm run dev        # http://localhost:5173
+npm run check      # lint, formatting, type check, unit tests with coverage thresholds
+npm run test:e2e   # end-to-end tests on the production build, in Chromium
+npm run build      # production build in dist/, service worker included
 ```
 
+| Script | What it does |
+| --- | --- |
+| `npm test` | Unit tests (`node --test` on the `.ts` files): the model, sync over an in-memory room, actions, geometry, view maths, files, clipboard, keymap, emoji search |
+| `npm run test:coverage` | The same, failing below 85% of lines, 80% of branches, 75% of functions |
+| `npm run test:e2e` | [Playwright](https://playwright.dev) tests in [`e2e/`](e2e/), desktop and phone. Run `npx playwright install chromium` once, or set `PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome |
+| `npm run lint` · `npm run format` | ESLint and Prettier |
+| `npm run typecheck` | Strict type checking of the app, the service worker, and the tests, specs and configs (three tsconfigs) |
+| `npm run tokens` | Regenerates `src/styles/tokens.css` from `mockup/tokens/variables.css` |
+
+Every pull request runs `check`, the build and the end-to-end tests ([CI](.github/workflows/ci.yml)); `main` deploys
+to GitHub Pages only after the same checks pass. Dependabot keeps dependencies and actions up to date.
+
 To simulate two people on one machine, open the app on both `http://localhost:5173` and
-`http://127.0.0.1:5173` (or in a private window): each one gets its own name and storage.
+`http://127.0.0.1:5173` (or in a private window): each one gets its own name and storage. The end-to-end tests
+keep off the network, so peer-to-peer itself is covered by the unit tests, which sync stores through an
+in-memory room.
 
 The interface is built on a small design system: colours, spacing, radii and sizes are tokens exported
 from the FigCraft mockup ([`mockup/`](mockup/)), and every control comes from the same primitives.
@@ -132,7 +148,7 @@ from the FigCraft mockup ([`mockup/`](mockup/)), and every control comes from th
 | --- | --- |
 | [`src/core/`](src/core/) | The board model on Yjs, item schema and migrations, geometry, clipboard and files (no DOM: tested in Node) |
 | [`src/sync/`](src/sync/) | IndexedDB copy, peer-to-peer transport (Trystero) and presence |
-| [`src/board/`](src/board/) | The canvas: view (pan, zoom, wheel), renderers, overlay and one file per tool |
+| [`src/board/`](src/board/) | The canvas: view (pan, zoom, wheel), renderers, overlay, one file per tool, and the actions the commands call |
 | [`src/commands/`](src/commands/) | Every action by id, and the one shortcut table behind keys, tooltips and the shortcuts panel |
 | [`src/ui/`](src/ui/) | Toolbar, context bar, menus, emoji picker; [`ui/ds/`](src/ui/ds/) is the design system's JavaScript side |
 | [`src/styles/`](src/styles/) | Generated tokens, the design system ([`ds/`](src/styles/ds/)) and layout |
