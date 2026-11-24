@@ -1,0 +1,22 @@
+{
+  "name": "meshboard",
+  "version": "0.1.0",
+  "description": "Lavagna collaborativa peer-to-peer senza server: forme, post-it e voti.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/store.test.mjs"
+  },
+  "dependencies": {
+    "trystero": "0.27.0",
+    "y-indexeddb": "9.0.12",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "vite": "8.3.8"
+  }
+}
