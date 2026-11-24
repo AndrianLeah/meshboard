@@ -34,6 +34,7 @@ test('the app, its settings and health checks are served with strict headers', a
     orgName: 'Acme',
     basePath: '/',
     auth: { kind: 'none', loginUrl: null, canSignOut: true },
+    images: { upload: null, origins: [] },
   })
   const page = await anon.get('b/abcdefghijklmnopqr')
   assert.equal(page.status, 200)

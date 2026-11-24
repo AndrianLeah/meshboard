@@ -123,7 +123,7 @@ export function createContextBar({
 
   function build() {
     const types = new Set(items.map((it) => it.type))
-    const colourable = items.filter((it) => it.type !== 'frame')
+    const colourable = items.filter((it) => it.type !== 'frame' && it.type !== 'image')
     const colors = new Set(colourable.map((it) => it.color))
     const locked = items.every((it) => it.locked)
     const parts: HTMLElement[] = []

@@ -156,16 +156,21 @@ export function checkSameOrigin(req: IncomingMessage, config: Pick<Config, 'url'
 }
 
 /** Headers on every response. The CSP allows only this server's own scripts, styles and fonts. */
-export function securityHeaders(config: Pick<Config, 'url' | 'secure'>): Record<string, string> {
+export function securityHeaders(
+  config: Pick<Config, 'url' | 'secure'> & Partial<Pick<Config, 'upload' | 'imageOrigins'>>,
+): Record<string, string> {
   const ws = `${config.secure ? 'wss' : 'ws'}://${config.url.host}`
+  // pictures are addresses: only the allowed sites, or any https address when none are listed
+  const images = config.imageOrigins?.length ? config.imageOrigins.join(' ') : 'https:'
+  const upload = config.upload ? ` ${new URL(config.upload.url).origin}` : ''
   const headers: Record<string, string> = {
     'content-security-policy': [
       "default-src 'self'",
       "script-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
+      `img-src 'self' data: blob: ${images}`,
       "font-src 'self'",
-      `connect-src 'self' ${ws}`,
+      `connect-src 'self' ${ws}${upload}`,
       "worker-src 'self'",
       "manifest-src 'self'",
       "object-src 'none'",

@@ -95,7 +95,7 @@ export function createSelectTool(ctx: ToolContext): Tool {
 
   function resize(it: BoxItem, pos: HandlePosition): Gesture {
     store.stopCapturing()
-    const keepCorners = it.type === 'note' || it.type === 'path'
+    const keepCorners = it.type === 'note' || it.type === 'path' || it.type === 'image'
     return {
       move(e, p) {
         const r = resizeBox(it, pos, p, { keepRatio: keepCorners || e.shiftKey, min: it.type === 'path' ? 4 : 20 })

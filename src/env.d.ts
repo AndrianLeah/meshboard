@@ -11,6 +11,17 @@ interface ImportMetaEnv {
   readonly VITE_TURN_USERNAME?: string
   readonly VITE_TURN_CREDENTIAL?: string
   readonly VITE_TURN_CREDENTIALS_URL?: string
+  /** optional image uploads, see src/core/images.ts and docs/self-hosting.md */
+  readonly VITE_UPLOAD_URL?: string
+  readonly VITE_UPLOAD_METHOD?: string
+  readonly VITE_UPLOAD_FIELD?: string
+  readonly VITE_UPLOAD_HEADERS?: string
+  readonly VITE_UPLOAD_CREDENTIALS?: string
+  readonly VITE_UPLOAD_URL_PATH?: string
+  readonly VITE_UPLOAD_WIDTH_PATH?: string
+  readonly VITE_UPLOAD_HEIGHT_PATH?: string
+  readonly VITE_UPLOAD_MAX_BYTES?: string
+  readonly VITE_IMAGE_ORIGINS?: string
 }
 
 interface ImportMeta {

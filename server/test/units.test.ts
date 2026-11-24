@@ -6,7 +6,16 @@ import { ConfigError, isTrusted, parseConfig } from '../src/config.ts'
 import { canEdit, canManage, canView, isAdmin, roleFor } from '../src/access.ts'
 import type { Viewer } from '../src/access.ts'
 import { parseCookies, seal, serializeCookie, signatureHeaders, text, unseal, verifySignature } from '../src/util.ts'
-import { checkSameOrigin, clientIp, createLimiter, HttpError, rateKey, Router, safeReturnTo } from '../src/http.ts'
+import {
+  checkSameOrigin,
+  clientIp,
+  createLimiter,
+  HttpError,
+  rateKey,
+  Router,
+  safeReturnTo,
+  securityHeaders,
+} from '../src/http.ts'
 import { cleanIdentity } from '../src/users.ts'
 import { describe as describeState, renderPreview, storeFrom } from '../src/preview.ts'
 import { createWebhooks } from '../src/webhooks.ts'
@@ -310,4 +319,53 @@ test('outgoing webhooks: signed, retried on errors, given up on refusals, thrott
   off.emit('board.created', data)
   await off.drain()
   assert.equal(calls.length, 4)
+})
+
+test('image uploads: settings checked, and the CSP opens only for them', () => {
+  const plain = parseConfig(BASE)
+  assert.equal(plain.upload, null)
+  assert.match(securityHeaders(plain)['content-security-policy'], /img-src 'self' data: blob: https:;/)
+  const c = parseConfig({
+    ...BASE,
+    UPLOAD_URL: 'https://uploads.acme.example/files',
+    UPLOAD_HEADERS: '{"X-Api-Key":"public-key"}',
+    UPLOAD_URL_PATH: 'data.url',
+    UPLOAD_CREDENTIALS: 'include',
+    IMAGE_ORIGINS: 'https://images.acme.example, https://cdn.acme.example/x',
+  })
+  assert.deepEqual(c.upload, {
+    url: 'https://uploads.acme.example/files',
+    method: 'POST',
+    field: 'file',
+    headers: { 'X-Api-Key': 'public-key' },
+    credentials: 'include',
+    urlPath: 'data.url',
+    widthPath: '',
+    heightPath: '',
+    maxBytes: 10_000_000,
+  })
+  const csp = securityHeaders(c)['content-security-policy']
+  assert.match(csp, /img-src 'self' data: blob: https:\/\/images\.acme\.example https:\/\/cdn\.acme\.example;/)
+  assert.match(csp, /connect-src 'self' wss:\/\/board\.example\.com https:\/\/uploads\.acme\.example;/)
+  const bad = problems({
+    ...BASE,
+    UPLOAD_URL: 'http://uploads.example/files',
+    UPLOAD_HEADERS: '["no"]',
+    UPLOAD_METHOD: 'GET',
+    UPLOAD_CREDENTIALS: 'always',
+    UPLOAD_URL_PATH: 'data[0]',
+    IMAGE_ORIGINS: 'http://images.example',
+  })
+  for (const name of [
+    'UPLOAD_URL',
+    'UPLOAD_HEADERS',
+    'UPLOAD_METHOD',
+    'UPLOAD_CREDENTIALS',
+    'UPLOAD_URL_PATH',
+    'IMAGE_ORIGINS',
+  ])
+    assert.ok(
+      bad.some((p) => p.startsWith(name)),
+      name,
+    )
 })

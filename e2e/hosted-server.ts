@@ -11,6 +11,12 @@ process.env.PORT ||= String(HOSTED_PORT)
 process.env.HOST ||= '127.0.0.1'
 process.env.DATA_DIR ||= mkdtempSync(join(tmpdir(), 'meshboard-e2e-'))
 process.env.ORG_NAME ||= 'Acme'
+// images: an upload endpoint and an image host the tests answer for (page.route)
+process.env.UPLOAD_URL ||= 'https://uploads.example/files'
+process.env.UPLOAD_URL_PATH ||= 'data.url'
+process.env.UPLOAD_WIDTH_PATH ||= 'data.width'
+process.env.UPLOAD_HEIGHT_PATH ||= 'data.height'
+process.env.IMAGE_ORIGINS ||= 'https://images.example'
 
 // the other web server builds the app; wait for it rather than build twice at once
 const index = join(import.meta.dirname, '..', 'dist', 'index.html')

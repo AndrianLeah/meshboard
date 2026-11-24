@@ -485,7 +485,6 @@ Each step is one pull request and leaves `main` working.
    webhooks.
    _Done when_ CI runs the server's tests against Postgres and the webhook signatures are tested.
 5. **Later:**
-   - images on boards (next, below);
    - embedding Meshboard in other apps, with signed tokens;
    - the access webhook;
    - several instances through Redis;
@@ -496,14 +495,15 @@ Each step is one pull request and leaves `main` working.
 
 If a company's sign-in is in-house, step 4's sign-in webhook can come before OIDC in step 3.
 
-## Next: images
+## Images
 
 An image on a board is a URL: Meshboard never stores files. To add one from a file, the app sends
 it to an upload endpoint the deployment configures (the organisation's own storage), and a
-converter turns that endpoint's answer into Meshboard's image format: at least the URL, and the
-size when the answer has it. Pasting an image's URL needs no endpoint. The public site gets images
-only if whoever hosts it sets an upload endpoint, as with the TURN relay. Images are allowed only
-from the configured origins, so the Content-Security-Policy stays narrow.
+converter turns that endpoint's answer into Meshboard's image format: the URL, and the size when
+the answer has it. Pasting an image's URL needs no endpoint. The public site gets uploads only if
+whoever hosts it sets an endpoint, as with the TURN relay. Images can be limited to configured
+origins, and the Content-Security-Policy follows. Built: see
+[the self-hosting guide](../self-hosting.md#images).
 
 ## Open questions
 

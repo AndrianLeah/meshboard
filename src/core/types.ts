@@ -2,7 +2,7 @@
 
 export type ColorKey = 'yellow' | 'orange' | 'red' | 'pink' | 'purple' | 'blue' | 'green' | 'gray'
 export type ShapeType = 'rect' | 'ellipse' | 'triangle' | 'diamond'
-export type BoxType = 'note' | ShapeType | 'text' | 'frame' | 'path'
+export type BoxType = 'note' | ShapeType | 'text' | 'frame' | 'path' | 'image'
 export type ItemType = BoxType | 'arrow'
 export type LineEnd = 'none' | 'arrow'
 
@@ -67,6 +67,15 @@ export interface PathItem extends BoxBase {
   width: number
 }
 
+/** A picture on the board: only its address. Meshboard never keeps the file. */
+export interface ImageItem extends BoxBase {
+  type: 'image'
+  /** an https address, checked by the schema */
+  src: string
+  /** what the picture shows, for screen readers and when it can't load */
+  alt: string
+}
+
 export interface ArrowItem extends ItemBase {
   type: 'arrow'
   /** where the free ends are; an attached end follows its item */
@@ -82,7 +91,7 @@ export interface ArrowItem extends ItemBase {
   dash: boolean
 }
 
-export type BoxItem = NoteItem | ShapeItem | TextItem | FrameItem | PathItem
+export type BoxItem = NoteItem | ShapeItem | TextItem | FrameItem | PathItem | ImageItem
 export type Item = BoxItem | ArrowItem
 
 /** `Omit` that keeps a union a union. */
@@ -94,7 +103,9 @@ export type ItemData = DistributiveOmit<Item, 'id'>
 type Fields<T> = Omit<T, 'id' | 'type' | 'author' | 'created' | 'reactions'>
 
 /** The fields `store.update` may change, on any kind of item. */
-export type ItemPatch = Partial<Fields<NoteItem> & Fields<TextItem> & Fields<PathItem> & Fields<ArrowItem>>
+export type ItemPatch = Partial<
+  Fields<NoteItem> & Fields<TextItem> & Fields<PathItem> & Fields<ArrowItem> & Fields<ImageItem>
+>
 
 /** What `store.create` takes: a type and any fields (the rest gets defaults). */
 export type NewItem = { type: ItemType } & ItemPatch

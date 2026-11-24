@@ -4,9 +4,9 @@ import type { ColorKey, ItemData, ItemType, Reactions, ShapeType, LineEnd } from
 
 export const COLOR_KEYS: readonly ColorKey[] = ['yellow', 'orange', 'red', 'pink', 'purple', 'blue', 'green', 'gray']
 export const SHAPES: readonly ShapeType[] = ['rect', 'ellipse', 'triangle', 'diamond']
-export const TYPES: readonly ItemType[] = ['note', ...SHAPES, 'text', 'frame', 'path', 'arrow']
+export const TYPES: readonly ItemType[] = ['note', ...SHAPES, 'text', 'frame', 'path', 'image', 'arrow']
 /** Items a connector can attach to. */
-export const CONNECTABLE: readonly ItemType[] = ['note', ...SHAPES, 'text']
+export const CONNECTABLE: readonly ItemType[] = ['note', ...SHAPES, 'text', 'image']
 export const TEXT_SIZES = [16, 24, 36, 56] as const
 
 interface Defaults {
@@ -26,6 +26,7 @@ export const DEFAULTS = {
   text: { w: 280, h: 40, color: 'gray', fontSize: 24 },
   frame: { w: 640, h: 440, color: 'gray' },
   path: { color: 'gray', width: 3 },
+  image: { w: 320, h: 240, color: 'gray' },
   arrow: { color: 'gray' },
 } as const satisfies Record<ItemType, Defaults>
 
@@ -106,6 +107,24 @@ function sanitizePoints(raw: unknown): number[] {
 
 const lineEnd = (v: unknown, fallback: LineEnd): LineEnd => (v === 'arrow' || v === 'none' ? v : fallback)
 
+const MAX_SRC = 2048
+
+/**
+ * An image address anyone on the board may load: https only (no data:, blob:, javascript: or
+ * plain http), no credentials in it, and not too long. The normalised address, or null.
+ */
+export function imageSrc(v: unknown): string | null {
+  if (typeof v !== 'string' || !v || v.length > MAX_SRC) return null
+  let url: URL
+  try {
+    url = new URL(v.trim())
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || !url.hostname) return null
+  return url.href.length <= MAX_SRC ? url.href : null
+}
+
 /** Normalises an item read from a file, another peer or the clipboard. Returns null when unusable. */
 export function sanitizeItem(raw: unknown): ItemData | null {
   if (!isObject(raw) || !isItemType(raw.type)) return null
@@ -153,6 +172,10 @@ export function sanitizeItem(raw: unknown): ItemData | null {
       oh: Math.max(1, num(raw.oh, box.h)),
       width: clamp(raw.width, 1, 24, def.width ?? 3),
     }
+  }
+  if (type === 'image') {
+    const src = imageSrc(raw.src)
+    return src ? { ...box, type, src, alt: str(raw.alt, 200) } : null
   }
   const text = str(raw.text, MAX_TEXT)
   if (type === 'text') return { ...box, type, text, fontSize: clamp(raw.fontSize, 10, 120, def.fontSize ?? 24) }

@@ -23,6 +23,7 @@ test('config.json decides the mode; anything odd means peer to peer', () => {
       orgName: 'Acme',
       basePath: '/meshboard/',
       auth: { kind: 'oidc', loginUrl: '/meshboard/auth/login', canSignOut: true },
+      images: { upload: null, origins: [] },
     },
   )
   // a config can't send people to another site to sign in
