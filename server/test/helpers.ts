@@ -168,6 +168,9 @@ export function provider(
   class Socket extends WebSocket {
     constructor(address: string, protocols?: string | string[]) {
       super(address, protocols, { headers })
+      // closing while still connecting (a test ending mid-reconnect) emits an error that a browser
+      // would only report on the socket; without a listener Node would throw it
+      this.on('error', () => {})
     }
   }
   const failures: string[] = []
