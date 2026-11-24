@@ -25,9 +25,13 @@ function serviceWorker() {
     apply: 'build',
     enforce: 'post',
     generateBundle(_options, bundle) {
-      const built = Object.keys(bundle).filter((f) => !f.endsWith('.map'))
+      // chunks loaded on demand (the emoji data) are cached the first time they're used, not up front
+      const built = Object.keys(bundle).filter((f) => {
+        const out = bundle[f]
+        return !f.endsWith('.map') && !(out.type === 'chunk' && out.isDynamicEntry)
+      })
       const statics = publicFiles()
-      const template = readFileSync('src/sw.js', 'utf8')
+      const template = readFileSync('src/app/sw.js', 'utf8')
       const hash = createHash('sha256').update(template)
       for (const f of [...built].sort()) hash.update(f)
       for (const f of statics.sort()) hash.update(f).update(readFileSync(join('public', f)))
@@ -46,6 +50,7 @@ process.env.VITE_SITE_URL ||= './'
 // relative base: works at https://user.github.io/<repo>/ with no configuration
 export default defineConfig({
   base: './',
-  build: { target: 'es2022' },
+  // the emoji data (~570 kB, ~86 kB gzipped) is its own chunk, loaded when the picker first opens
+  build: { target: 'es2022', chunkSizeWarningLimit: 600 },
   plugins: [serviceWorker()],
 })

@@ -1,0 +1,74 @@
+/*
+ * Design system · menus
+ * One list of actions for every menu: board menu, user menu, zoom menu, context menu.
+ */
+.ds-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 6px;
+}
+.ds-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  text-align: left;
+  cursor: pointer;
+}
+.ds-menu__item svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+.ds-menu__icon-space {
+  flex: none;
+  width: 18px;
+}
+.ds-menu__label {
+  flex: 1;
+  min-width: 0;
+}
+.ds-menu__hint {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+.ds-menu__item:hover,
+.ds-menu__item.is-active {
+  background: var(--surface-hover);
+  outline: none;
+}
+.ds-menu__item:disabled {
+  background: none;
+  color: var(--text-tertiary);
+  cursor: default;
+}
+.ds-menu__item:disabled svg {
+  color: var(--text-tertiary);
+}
+.ds-menu__item--danger,
+.ds-menu__item--danger svg {
+  color: var(--danger);
+}
+.ds-menu__item[aria-checked='true'] svg {
+  color: var(--accent);
+}
+.ds-menu__separator {
+  height: 1px;
+  margin: 4px;
+  border: 0;
+  background: var(--line);
+}
+.ds-menu__heading {
+  padding: 6px 10px 4px;
+}

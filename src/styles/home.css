@@ -1,0 +1,89 @@
+/* The home screen's layout; panels, fields and buttons come from the design system. */
+.home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  height: 100%;
+  padding: calc(64px + var(--safe-top)) var(--space-4) calc(var(--space-8) + var(--safe-bottom));
+  overflow-y: auto;
+}
+.home__panel {
+  width: min(440px, 100%);
+}
+.home__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 28px;
+}
+.home__card > p {
+  margin: 0;
+}
+.home__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.home__title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.home__join {
+  display: flex;
+  gap: var(--space-2);
+}
+.home__error {
+  margin: 0;
+  color: var(--danger);
+}
+.home__recent {
+  padding: var(--space-5) var(--space-3) var(--space-3);
+}
+.home__recent > h2 {
+  padding: 0 var(--space-3) var(--space-2);
+}
+.home__recent-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.home__recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.home__recent-open {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 10px var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.home__recent-open:hover {
+  background: var(--surface-hover);
+}
+.home__recent-open > .ds-heading {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home__recent-open > .ds-caption {
+  flex: none;
+}
+.home__foot {
+  margin: 0;
+  text-align: center;
+}
+.home__foot a {
+  color: inherit;
+}
