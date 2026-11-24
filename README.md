@@ -190,6 +190,15 @@ The icon is three sticky notes woven into a ring: each one rests on a neighbour 
 the other, so no note sits on top of the rest, just like the peers on a board. It was drawn in
 VectorCraft; the source file and design notes are in [`branding/`](branding/).
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the
+setup, the scripts, where things live and the house rules, and everyone follows the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+Found a security problem? Please don't open an issue: [SECURITY.md](SECURITY.md) explains how to
+report it privately and what's in scope.
+
 ## License
 
 [MIT](LICENSE)

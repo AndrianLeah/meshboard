@@ -1,0 +1,102 @@
+name: Bug report
+description: Something on the board doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+        - **Security problem?** Don't file it here: [report it privately](https://github.com/AndrianLeah/meshboard/security/advisories/new).
+        - **Never paste a board link.** The link is the key to the board: anyone who sees it can join.
+        - Teammates can't connect at all? Some office networks block peer-to-peer: the README explains how to add a TURN server.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+      placeholder: My sticky note disappeared for my teammate after I moved it into a frame.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Starting from a new board, if you can.
+      placeholder: |
+        1. Create a board and share the link with a second browser
+        2. Add a sticky note and a frame
+        3. Drag the note into the frame
+        4. In the second browser, the note is gone
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      description: For every browser involved, if there were several people.
+      placeholder: Chrome 131 on macOS 15, Safari on iOS 18
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Desktop or mobile?
+      options:
+        - Desktop or laptop
+        - Phone or tablet
+        - Both
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Browser tab or installed app?
+      options:
+        - In a browser tab
+        - Installed as an app (PWA)
+        - Not sure
+    validations:
+      required: false
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      description: Pick every network the people on the board were using.
+      multiple: true
+      options:
+        - Home Wi-Fi
+        - Office or corporate network
+        - Mobile data
+        - Public Wi-Fi (café, hotel, airport)
+        - VPN
+        - Offline
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: people
+    attributes:
+      label: How many people were on the board?
+      options:
+        - Just me
+        - '2'
+        - 3 to 5
+        - More than 5
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Console output
+      description: Open the browser's developer tools (Console tab) and copy any errors or lines starting with `[meshboard]`.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Screenshots, a screen recording, or an exported board that shows the problem (remove anything private first).
+    validations:
+      required: false
