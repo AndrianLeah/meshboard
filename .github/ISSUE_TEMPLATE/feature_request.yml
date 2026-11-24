@@ -1,0 +1,37 @@
+name: Feature request
+description: An idea to make Meshboard better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Meshboard is a static site where browsers talk to each other directly: no server, no accounts, nothing to pay for. Ideas that need a backend or a login probably won't fit, but tell us the problem anyway; there may be another way to solve it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The problem or the situation, before any solution.
+      placeholder: In our retros we group notes by theme, and it takes ages to move them one by one.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would help?
+      description: How it could work on the board. Sketches and screenshots are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use today, or how other whiteboard tools handle it.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the open issues and this hasn't been requested yet.
+          required: true
