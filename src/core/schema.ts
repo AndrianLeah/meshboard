@@ -45,11 +45,18 @@ const num = (v: unknown, d = 0): number => {
   return Number.isFinite(n) ? Math.max(-LIMIT, Math.min(LIMIT, n)) : d
 }
 const clamp = (v: unknown, lo: number, hi: number, d: number): number => Math.max(lo, Math.min(hi, num(v, d)))
+/** A time in ms since 1970, up to the last one a Date can hold, or now. */
+const time = (v: unknown): number => {
+  const n = Number(v)
+  return n > 0 && n <= 8.64e15 ? n : Date.now()
+}
 const str = (v: unknown, max = 200): string => (typeof v === 'string' ? v.slice(0, max) : '')
 const isEmoji = (s: unknown): s is string =>
   typeof s === 'string' && s.length > 0 && s.length <= 32 && !/[<>&"'\s]/.test(s)
 const isObject = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === 'object'
 
+/** What an item id may be: the store skips items under any other key. */
+export const isItemId = (id: unknown): id is string => typeof id === 'string' && id.length > 0 && id.length <= ID_MAX
 export const isItemType = (t: unknown): t is ItemType => TYPES.includes(t as ItemType)
 export const isShapeType = (t: unknown): t is ShapeType => SHAPES.includes(t as ShapeType)
 export const isShape = (it: { type: string } | null | undefined): boolean => Boolean(it) && isShapeType(it!.type)
@@ -79,10 +86,22 @@ export function sanitizeReactions(raw: unknown, legacyVotes?: unknown): Reaction
   return out
 }
 
+// The store sanitises an item again on every change to it, and a stroke's points stay the same
+// array while it's moved or resized: remember each array's result (a frozen copy, recognised too)
+// so a drag doesn't walk thousands of numbers per frame. Point arrays are never changed in place.
+const pointsDone = new WeakMap<readonly unknown[], number[]>()
+
 function sanitizePoints(raw: unknown): number[] {
   if (!Array.isArray(raw)) return []
-  const pts = raw.slice(0, MAX_POINTS * 2).map((v) => num(v))
-  return pts.length % 2 ? pts.slice(0, -1) : pts
+  let pts = pointsDone.get(raw)
+  if (!pts) {
+    pts = raw.slice(0, MAX_POINTS * 2).map((v) => num(v))
+    if (pts.length % 2) pts.pop()
+    Object.freeze(pts)
+    pointsDone.set(raw, pts)
+    pointsDone.set(pts, pts)
+  }
+  return pts
 }
 
 const lineEnd = (v: unknown, fallback: LineEnd): LineEnd => (v === 'arrow' || v === 'none' ? v : fallback)
@@ -96,7 +115,7 @@ export function sanitizeItem(raw: unknown): ItemData | null {
     color: COLOR_KEYS.includes(raw.color as ColorKey) ? (raw.color as ColorKey) : def.color,
     z: num(raw.z),
     author: str(raw.author, ID_MAX),
-    created: num(raw.created, Date.now()),
+    created: time(raw.created),
     locked: raw.locked === true,
     group: str(raw.group, ID_MAX),
   }

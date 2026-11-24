@@ -54,10 +54,11 @@ live, or for 90 days, whichever comes first.
   that help browsers find a route to each other, and any TURN server a deployment adds are run by
   other people. They see IP addresses and timing, never the decrypted content.
 - **Incoming data is untrusted.** Imported files, the clipboard and everything peers send are
-  treated as hostile. Items from files and the clipboard are normalised by `sanitizeItem` in
-  [`src/core/schema.ts`](src/core/schema.ts) (known types only, numbers clamped, text and lists
-  capped), presence is cleaned in [`src/sync/presence.ts`](src/sync/presence.ts), the board only
-  reads items of a known type, and text is always rendered as text, never as HTML.
+  treated as hostile. Items from files, the clipboard and other peers are normalised by
+  `sanitizeItem` in [`src/core/schema.ts`](src/core/schema.ts) (known types only, numbers clamped,
+  text and lists capped; the board skips an item it can't repair), presence is cleaned in
+  [`src/sync/presence.ts`](src/sync/presence.ts), and text is always rendered as text, never as
+  HTML.
 
 ## In scope
 

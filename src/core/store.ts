@@ -2,7 +2,7 @@
 // different fields merge cleanly. Reactions are a flat Y.Map keyed "<userId>:<emoji>" (value: the
 // time of the reaction), so two people reacting at once never overwrite each other.
 import * as Y from 'yjs'
-import { DEFAULT_TITLE, TYPES, sanitizeItem } from './schema.ts'
+import { DEFAULT_TITLE, isItemId, sanitizeItem } from './schema.ts'
 import type { ItemData } from './types.ts'
 import { arrowEnds } from './geometry.ts'
 import { randomId } from './identity.ts'
@@ -47,13 +47,23 @@ export function createStore(me: User) {
   const users = doc.getMap<string>('users')
   const undoManager = new Y.UndoManager([items, meta], { captureTimeout: 400 })
 
+  /**
+   * The item under `id` as everyone sees it. Other peers can write anything into the doc, so it
+   * goes through the same limits as a file or the clipboard; an item that can't be repaired (bad
+   * id, unknown type, a stroke without points) is skipped.
+   */
   function read(id: string, m: unknown): Item | null {
-    if (!(m instanceof Y.Map) || !TYPES.includes(m.get('type') as Item['type'])) return null
-    const it = m.toJSON() as Record<string, unknown>
-    it.id = id
-    if (it.type === 'note') it.reactions = groupReactions(it.reactions as Record<string, unknown>)
-    else delete it.reactions
-    return Object.freeze(it) as unknown as Item
+    if (!(m instanceof Y.Map) || !isItemId(id)) return null
+    // a shallow copy: nested Yjs types stay as they are, so a field nobody reads costs nothing
+    const raw: Record<string, unknown> = {}
+    m.forEach((v, k) => {
+      raw[k] = v
+    })
+    const r = raw.reactions
+    raw.reactions = r instanceof Y.Map ? groupReactions(r.toJSON()) : {}
+    delete raw.votes // v1 votes count once migrate() has turned them into reactions
+    const it = sanitizeItem(raw)
+    return it && Object.freeze({ ...it, id })
   }
 
   // Plain, frozen copies of the items, refreshed only for the items a change touches: a drag that
